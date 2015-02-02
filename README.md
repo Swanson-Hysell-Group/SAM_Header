@@ -6,4 +6,4 @@ simply type data into the spreadsheet template provided and then save as a csv. 
 
 ###reversing this process:
 
-use the reverse_sam_file.py on the .sam file and sample files and you'll get a csv file of the format used by this system making instant spreadsheets from sam files. (not currently opperational)
+use the reverse_sam_file.py on the .sam file and sample files and you'll get a csv file of the format used by this system making instant spreadsheets from sam files.
