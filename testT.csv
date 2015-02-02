@@ -1,4 +1,9 @@
-,.1a,.2a,.5a,.6a,.7a,.8a
+,site_info,,,,,
+name,Ord.-Sil. Teel basalt,,,,,
+lat,47.1,,,,,
+long,95.4,,,,,
+mag_dec,1.2,,,,,
+sample_name,.1a,.2a,.5a,.6a,.7a,.8a
 local_id,Z52,Z52,Z52,Z52,Z52,Z52
 comment,,,,,,
 strat_level,739.9,738.9,738.6,,,
