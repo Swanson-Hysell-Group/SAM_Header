@@ -105,7 +105,7 @@ for sample in samples:
     assert (len(sample) <= 9),'Sample name excedes 9 chaaracters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
     
     #write sample name and comment for sample file
-    new_file =  site_id + ' '*(4-len(site_id)) + sample + ' '*(9-len(sample)) + comment + '\r\n '
+    new_file =  site_id + ' '*(4-len(site_id)) + sample + ' ' + comment + '\r\n '
 
     #write in sample attributes on the second line
     for attribute in attributes:
@@ -117,7 +117,7 @@ for sample in samples:
         #attributes must follow standard sam format
         assert (len(df[sample][attribute]) <= 5),'Length of ' + attribute + ' excedes 5 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
 
-        new_file += ' ' + df[sample][attribute] + ' '*(5-len(df[sample][attribute]))
+        new_file += ' ' + ' '*(5-len(df[sample][attribute])) + df[sample][attribute]
 
     new_file += '\r\n'
     
@@ -126,6 +126,7 @@ for sample in samples:
         new_file += run + '\r\n'
     
     #create and write sample file
+    new_file = new_file.rstrip('\r\n') + '\r\n'
     sample_file = open(directory + site_id + sample, 'w')
     sample_file.write(new_file)
     sample_file.close()
