@@ -4,6 +4,7 @@ from pmag import dosundec as sundec
 from ipmag import igrf
 from datetime import datetime as dt
 from to_year_fraction import *
+from functools import reduce
 
 ##Takes formated CSV and creates and writes a .sam header file and a set of sample files##
 ##for any number of samples.                                                            ##
@@ -128,3 +129,38 @@ for sample in samples:
     sample_file = open(directory + site_id + sample, 'w')
     sample_file.write(new_file)
     sample_file.close()
+
+################Write New Values to .csv###################
+
+csv_file = open(file_name)
+csv_str = ''
+
+for i in range(6):
+    csv_str += csv_file.readline()
+
+header = csv_file.readline()
+csv_str += header
+header = header.strip('\n').split(',')
+
+for sample in samples:
+    line = csv_file.readline()
+    items = line.split(',')
+    for i in range(len(items)):
+        if i == 1:
+            continue
+        elif header[i] == 'calculated_IGRF':
+            if type(df[sample][header[i]]) != str:
+                items[i] = str(list(df[sample][header[i]])).replace(',',';')
+            else:
+                items[i] = str(df[sample][header[i]])
+        elif header[i] in df[sample].keys():
+            items[i] = str(df[sample][header[i]])
+        elif header[i] in sdf[sample].keys():
+            items[i] = str(sdf[sample][header[i]])
+        else:
+            raise KeyError('there is no item: ' + header[i])
+    csv_str += reduce(lambda x,y: x + ',' + y, items) + '\n'
+
+new_csv_file = open(file_name,'w')
+new_csv_file.write(csv_str)
+new_csv_file.close()
