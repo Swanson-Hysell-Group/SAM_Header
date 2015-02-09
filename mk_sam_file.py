@@ -12,6 +12,7 @@ from functools import reduce
 
 #################READ IN FILES####################
 
+
 #fetching comand line data
 file_name = sys.argv[1]
 directory = reduce(lambda x,y: x+'/'+y, [sub for sub in file_name.split('/') if not sub.endswith('.csv')]) + '/'
@@ -23,7 +24,7 @@ sdf = pd.read_csv(file_name,header=6,index_col=0,usecols=[1,6,7,8,9,10,11,12]).t
 
 #variable assignments
 samples = df.keys()
-attributes = ['strat_level','core_strike','core_dip','bedding_strike','bedding_dip','mass']
+attributes = ['core_strike','core_dip','bedding_strike','bedding_dip','mass']
 site_values = ['lat','long','mag_dec']
 
 ##########Find Calculated Values##################
@@ -62,11 +63,12 @@ for sample in samples:
 sam_header = hdf['site_info']['name'] + '\r\n'
 
 #creating long lat and dec info
-i=1
 for value in site_values:
-    sam_header += ' ' + hdf['site_info'][value] + ' '*i
-    i += 1
-sam_header = sam_header[0:-i+1]
+    hdf['site_info'][value] = str(round(float(hdf['site_info'][value]),1))
+    if value == 'lat':
+        sam_header += ' ' + hdf['site_info'][value]
+    else:
+        sam_header += ' '*(5-len(hdf['site_info'][value]) + 1) + hdf['site_info'][value]
 sam_header += '\r\n'
 
 #making writing sample info
@@ -93,10 +95,11 @@ for sample in samples:
     if math.isnan(df[sample]['sun_core_strike']):
         df[sample]['core_strike'] = df[sample]['magnetic_core_strike']
     else:
+##########################change 'sun_core_strike'##########################################
         df[sample]['core_strike'] = df[sample]['sun_core_strike']
 
     #check for no comment
-    if type(comment) != str:
+    if type(comment) == float and math.isnan(comment):
         comment = ''
 
     #insure input is valid
@@ -105,13 +108,22 @@ for sample in samples:
     assert (len(sample) <= 9),'Sample name excedes 9 chaaracters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
     
     #write sample name and comment for sample file
-    new_file =  site_id + ' '*(4-len(site_id)) + sample + ' ' + comment + '\r\n '
+    new_file =  site_id + ' ' + sample + ' ' + comment + '\r\n'
+
+    #start second line strat_level get's special treatment
+    df[sample]['strat_level'] = str((df[sample]['strat_level']))
+    assert (len(df[sample]['strat_level']) <= 6),'Length of strat_level excedes 6 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
+    new_file += ' ' + ' '*(6-len(df[sample]['strat_level'])) + df[sample]['strat_level']
 
     #write in sample attributes on the second line
     for attribute in attributes:
-        if math.isnan(df[sample][attribute]):
+
+        assert (str(df[sample][attribute]).isdigit),str(attributes) + 'must all be numbers'
+
+        if type(df[sample][attribute]) == float and math.isnan(df[sample][attribute]):
             df[sample][attribute] = ''
-        df[sample][attribute] = str(float(df[sample][attribute]))
+        else:
+            df[sample][attribute] = str(round(float(df[sample][attribute]),1))
 
 
         #attributes must follow standard sam format
@@ -146,7 +158,7 @@ header = header.strip('\n').split(',')
 for sample in samples:
     line = csv_file.readline()
     items = line.split(',')
-    for i in range(len(items)):
+    for i in range(len(header)):
         if i == 1:
             continue
         elif header[i] == 'calculated_IGRF':

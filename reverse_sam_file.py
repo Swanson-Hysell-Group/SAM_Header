@@ -61,7 +61,6 @@ if len(sys.argv) > 2:
         sample_dict['bedding_strike'].append(attributes[3])
         sample_dict['bedding_dip'].append(attributes[4])
         sample_dict['mass'].append(attributes[5])
-        sample_dict['
 
         line = 'mary had a little lamb'
         runs = ''
