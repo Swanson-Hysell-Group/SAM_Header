@@ -1,6 +1,11 @@
 import pandas as pd
 import sys
 
+##Preforms inverse opperation of mk_sam_file by turning .sam files into .csv            ##
+##example usage:                                                                        ##
+## ~/$ python reverse_sam_file.py site.sam site.sample_1 ... site.sample_n              ##
+
+
 sam_file = sys.argv[1]
 sam_text = open(sam_file)
 csv_file = ''

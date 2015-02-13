@@ -8,6 +8,8 @@ from functools import reduce
 
 ##Takes formated CSV and creates and writes a .sam header file and a set of sample files##
 ##for any number of samples.                                                            ##
+##example usage:                                                                        ##
+## ~/$ python mk_sam_file.py site.csv                                                   ##
 
 
 #################READ IN FILES####################

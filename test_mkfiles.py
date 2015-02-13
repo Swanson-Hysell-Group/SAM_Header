@@ -1,5 +1,7 @@
 import sys
 
+## Tests if two files have the same text characters                                     ##
+
 args = sys.argv
 
 assert (len(args) == 3),'Bad number of arguments please input 2 file names'

@@ -1,6 +1,8 @@
 import time
 from datetime import datetime as dt
 
+# authored by ninjagecko on stackoverflow: http://stackoverflow.com/questions/6451655/python-how-to-convert-datetime-dates-to-decimal-years #
+
 def to_year_fraction(date):
     def sinceEpoch(date): # returns seconds since epoch
         return time.mktime(date.timetuple())
