@@ -1,5 +1,5 @@
 import pandas as pd
-import math,sys,time
+import math,sys,time,os
 from pmag import dosundec as sundec
 from ipmag import igrf
 from datetime import datetime as dt
@@ -31,12 +31,14 @@ def main():
 
     #fetching comand line data
     file_name = sys.argv[1]
-    directory = reduce(lambda x,y: x+'/'+y, [sub for sub in file_name.split('/') if not sub.endswith('.csv')]) + '/'
+    directory = os.getcwd() + '/'
+    df_cols = ['site_id','sample_name','comment','strat_level','magnetic_core_strike','core_dip','bedding_strike','bedding_dip','mass','runs','sun_core_strike','calculated_IGRF','IGRF_local_dec','calculated_mag_dec','core_strike']
+    sdf_cols = ['sample_name','shadow_angle','GMT_offset','year','month','days','hours','minutes']
 
     #file read in
     hdf = pd.read_csv(file_name,header=0,index_col=0,nrows=4,usecols=[0,1])
-    df = pd.read_csv(file_name,header=5,index_col=1,usecols=[0,1,2,3,4,5,13,14,15,16,17,18,19,20,21]).transpose()
-    sdf = pd.read_csv(file_name,header=5,index_col=0,usecols=[1,6,7,8,9,10,11,12]).transpose()
+    df = pd.read_csv(file_name,header=5,index_col=1,usecols=df_cols).transpose()
+    sdf = pd.read_csv(file_name,header=5,index_col=0,usecols=sdf_cols).transpose()
 
     #variable assignments
     samples = df.keys()
@@ -107,7 +109,7 @@ def main():
 
     #making writing sample info
     for sample in samples:
-        sam_header += df[sample]['site_id'] + sample + '\r\n'
+        sam_header += df[sample]['site_id'] + str(sample) + '\r\n'
 
     #creating and writing file
     sam_file = open(directory + df[sample]['site_id'] + '.sam', 'w')
@@ -123,6 +125,8 @@ def main():
         comment = df[sample]['comment']
         if type(df[sample]['runs']) == str:
             runs = df[sample]['runs'].split(';')
+        else:
+            runs = []
 
         #decide which core_strike to use, default is sun_core_strike but if not supplied 
         #magnetic_core_strike will be used
@@ -139,10 +143,10 @@ def main():
         #insure input is valid
         assert (len(site_id) <= 4),'Locality ID excedes 4 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
         assert (len(comment) <= 255),'Sample comment excedes 255 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
-        assert (len(sample) <= 9),'Sample name excedes 9 chaaracters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
+        assert (len(str(sample)) <= 9),'Sample name excedes 9 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
         
         #write sample name and comment for sample file
-        new_file =  site_id + ' ' + sample + ' ' + comment + '\r\n'
+        new_file =  site_id + ' ' + str(sample) + ' ' + comment + '\r\n'
 
         #start second line strat_level get's special treatment
         df[sample]['strat_level'] = str((df[sample]['strat_level']))
@@ -173,7 +177,7 @@ def main():
         
         #create and write sample file
         new_file = new_file.rstrip('\r\n') + '\r\n'
-        sample_file = open(directory + site_id + sample, 'w')
+        sample_file = open(directory + site_id + str(sample), 'w')
         sample_file.write(new_file)
         sample_file.close()
 
