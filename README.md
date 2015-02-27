@@ -1,7 +1,16 @@
-#.SAM creation system in python
+#.SAM file creation in Python
 
-###how to:
+This repository contains Python code that takes paleomagnetic core orientation data from a .csv template and converts into the .sam format. This file format is used by the RAPID paleomag software (http://sourceforge.net/projects/paleomag/) that is used to generate paleomagnetic and rock magnetic data with 2G Enterprise superconducting rock magnetometers.
 
-simply type data into the spreadsheet template provided and then save as a csv. Feed that csv into the python script mk_sam_file.py using command line and watch as the .sam file and all the sample files apear.
+##How to use the code:
 
-**dependencies** - this system relies on python functions from the PymagPy library by Lisa Tauxe which can be found here https://github.com/ltauxe/PmagPy, if files are not running check to make sure you've added PmagPy to $PYTHONPATH.
+- Enter data into the spreadsheet template (sam_sample_template.xlsx or sam_sample_template.csv) and then save as a csv. 
+- Run the python script mk_sam_file.py using command line specifying use of the .csv file you have saved:
+```
+~/$ python mk_sam_file.py site.csv
+```
+- The code should then generate a .sam header file as well as sample files for each sample in the site.
+
+##Dependencies
+
+This code utilizes Python functions from the PmagPy library (https://github.com/ltauxe/PmagPy). If the code is not working for you, download PmagPy and make sure you have added it to $PYTHONPATH.
