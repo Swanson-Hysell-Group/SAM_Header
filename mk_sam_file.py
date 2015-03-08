@@ -1,5 +1,5 @@
 import pandas as pd
-import math,sys,time,os
+import math,sys,time
 from pmag import dosundec as sundec
 from ipmag import igrf
 from datetime import datetime as dt
@@ -18,7 +18,7 @@ def main():
         ~/$ python mk_sam_file.py site.csv
 
     OUTPUT
-        .sam and 
+        .sam and sample files
 
     """
 
@@ -31,33 +31,37 @@ def main():
 
     #fetching comand line data
     file_name = sys.argv[1]
-    directory = os.getcwd() + '/'
-    df_cols = ['site_id','sample_name','comment','strat_level','magnetic_core_strike','core_dip','bedding_strike','bedding_dip','mass','runs','sun_core_strike','calculated_IGRF','IGRF_local_dec','calculated_mag_dec','core_strike']
+    try: directory = reduce(lambda x,y: x + '/' + y, file_name.split('/')[0:-1]) + '/'
+    except: directory = '/'
+    df_cols = ['sample_name','comment','strat_level','magnetic_core_strike','core_dip','bedding_strike','bedding_dip','use_uncorrected_bedding','mass','runs','sun_core_strike','calculated_IGRF','IGRF_local_dec','calculated_mag_dec','core_strike','corrected_bedding_strike']
     sdf_cols = ['sample_name','shadow_angle','GMT_offset','year','month','days','hours','minutes']
 
     #file read in
-    hdf = pd.read_csv(file_name,header=0,index_col=0,nrows=4,usecols=[0,1])
-    df = pd.read_csv(file_name,header=5,index_col=1,usecols=df_cols).transpose()
-    sdf = pd.read_csv(file_name,header=5,index_col=0,usecols=sdf_cols).transpose()
+    hdf = pd.read_csv(file_name,header=0,index_col=0,nrows=5,usecols=[0,1])
+    df = pd.read_csv(file_name,header=6,index_col=0,usecols=df_cols).transpose()
+    sdf = pd.read_csv(file_name,header=6,index_col=0,usecols=sdf_cols).transpose()
 
     #variable assignments
     samples = df.keys()
     attributes = ['core_strike','core_dip','bedding_strike','bedding_dip','mass']
-    site_values = ['lat','long']
+    site_values = ['site_lat','site_long']
     time_types = ['year','month','days','hours','minutes']
 
     ##########Find Calculated Values##################
 
+    print('---------------------STATISTICS-----------------------')
+
     #calculate sun_core_strike for all samples
     for sample in samples:
-        time_values = []
-        for i in range(len(time_types)):
-             time_values.append(str(int(sdf[sample][time_types[i]])))
-        assert (len(time_values[0]) == 4),"must input full year for sun compass calculation (i.e. YYYY)"
-        sundata = {}
-        if float('nan') in sdf[sample]:
+        if float('nan') == sdf[sample]['shadow_angle']:
             df[sample]['sun_core_strike'] = float('nan')
+            continue
         else:
+            time_values = []
+            for i in range(len(time_types)):
+                 time_values.append(str(int(sdf[sample][time_types[i]])))
+            assert (len(time_values[0]) == 4),"must input full year for sun compass calculation (i.e. YYYY)"
+            sundata = {}
             if (len(time_values[1]) == 1):
                 time_values[1] = '0' + time_values[1]
             if (len(time_values[2]) == 1):
@@ -67,8 +71,8 @@ def main():
             if (len(time_values[4]) == 1):
                 time_values[4] = '0' + time_values[4]
             sundata['date'] = reduce(lambda x,y: x + ':' + y, time_values)
-            sundata['lat'] = hdf['site_info']['lat']
-            sundata['lon'] = hdf['site_info']['long']
+            sundata['lat'] = hdf['site_info']['site_lat']
+            sundata['lon'] = hdf['site_info']['site_long']
             sundata['shadow_angle'] = sdf[sample]['shadow_angle']
             sundata['delta_u'] = sdf[sample]['GMT_offset']
             df[sample]['sun_core_strike'] = round(sundec(sundata),1)
@@ -77,11 +81,17 @@ def main():
         if math.isnan(sdf[sample]['year']) or math.isnan(sdf[sample]['month']) or math.isnan(sdf[sample]['days']) or math.isnan(sdf[sample]['hours']) or math.isnan(sdf[sample]['minutes']):
             df[sample]['calculated_IGRF'] = 'insufficient data'
         else:
-            if math.isnan(float(hdf['site_info']['elevation'])):
-                hdf['site_info']['elevation'] = 0
+            if math.isnan(float(hdf['site_info']['site_elevation'])):
+                hdf['site_info']['site_elevation'] = 0
             date = to_year_fraction(dt(int(sdf[sample]['year']),int(sdf[sample]['month']),int(sdf[sample]['days']),int(sdf[sample]['hours']),int(sdf[sample]['minutes'])))
-            df[sample]['calculated_IGRF'] = igrf([date,float(hdf['site_info']['elevation']),float(hdf['site_info']['lat']),float(hdf['site_info']['long'])])
-            df[sample]['IGRF_local_dec'] = df[sample]['calculated_IGRF'][0]
+            df[sample]['calculated_IGRF'] = igrf([date,float(hdf['site_info']['site_elevation'])/1000,float(hdf['site_info']['site_lat']),float(hdf['site_info']['site_long'])])
+            if float(df[sample]['calculated_IGRF'][0]) > 180:
+                df[sample]['IGRF_local_dec'] = df[sample]['calculated_IGRF'][0] - 360
+            else: 
+                df[sample]['IGRF_local_dec'] = df[sample]['calculated_IGRF'][0]
+            #print out the local IGRF
+            print(hdf['site_info']['site_id'] + str(sample) + " has local IGRF declination of: ")
+            print(df[sample]['IGRF_local_dec'])
 
     #calculate magnetic declination
         if math.isnan(df[sample]['sun_core_strike']) or math.isnan(df[sample]['magnetic_core_strike']):
@@ -91,16 +101,18 @@ def main():
 
     if abs(float(df.transpose()['IGRF_local_dec'].mean()) - float(df.transpose()['calculated_mag_dec'].mean())) > 5:
         print('WARNING: local IGRF declination & calculated magnetic declination where ' + str(abs(round(float(df.transpose()['IGRF_local_dec'].mean()) - float(df.transpose()['calculated_mag_dec'].mean()),2))) + ' degrees different')
+    print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
+    print('Standard Deviation of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].std()))
 
     ##########CREATE .SAM HEADER FILE##################
 
     #setting name
-    sam_header = hdf['site_info']['name'] + '\r\n'
+    sam_header = hdf['site_info']['site_name'] + '\r\n'
 
     #creating long lat and dec info
     for value in site_values:
         hdf['site_info'][value] = str(round(float(hdf['site_info'][value]),1))
-        if value == 'lat':
+        if value == 'site_lat':
             sam_header += ' ' + hdf['site_info'][value]
         else:
             sam_header += ' '*(5-len(hdf['site_info'][value]) + 1) + hdf['site_info'][value]
@@ -109,10 +121,10 @@ def main():
 
     #making writing sample info
     for sample in samples:
-        sam_header += df[sample]['site_id'] + str(sample) + '\r\n'
+        sam_header += hdf['site_info']['site_id'] + str(sample) + '\r\n'
 
     #creating and writing file
-    sam_file = open(directory + df[sample]['site_id'] + '.sam', 'w')
+    sam_file = open(directory + hdf['site_info']['site_id'] + '.sam', 'w')
     sam_file.write(sam_header)
     sam_file.close()
 
@@ -121,20 +133,31 @@ def main():
     for sample in samples:
 
         #assign variables for easy refrence
-        site_id = df[sample]['site_id']
+        site_id = hdf['site_info']['site_id']
         comment = df[sample]['comment']
-        if type(df[sample]['runs']) == str:
+        if not math.isnan(df[sample]['runs']):
             runs = df[sample]['runs'].split(';')
         else:
             runs = []
 
         #decide which core_strike to use, default is sun_core_strike but if not supplied 
         #magnetic_core_strike will be used
-        if math.isnan(df[sample]['sun_core_strike']):
-            df[sample]['core_strike'] = df[sample]['magnetic_core_strike'] + (df[sample]['calculated_IGRF'] - 360)
+        if math.isnan(df[sample]['use_uncorrected_bedding']):
+            df[sample]['use_uncorrected_bedding'] = 'no'
+        if (df[sample]['use_uncorrected_bedding']) == 'no' or (df[sample]['use_uncorrected_bedding']) == 'No' or (df[sample]['use_uncorrected_bedding']) == 'NO':
+            if math.isnan(df[sample]['sun_core_strike']):
+                df[sample]['core_strike'] = df[sample]['magnetic_core_strike'] + (df[sample]['IGRF_local_dec'])
+                df[sample]['comment'] = 'mag orientation'
+            else:
+                df[sample]['core_strike'] = df[sample]['sun_core_strike'] + (df[sample]['IGRF_local_dec'])
+                df[sample]['comment'] = 'sun orientation'
         else:
-    ##########################change 'sun_core_strike'##########################################
-            df[sample]['core_strike'] = df[sample]['sun_core_strike']
+            if math.isnan(df[sample]['sun_core_strike']):
+                df[sample]['core_strike'] = df[sample]['magnetic_core_strike']
+                df[sample]['comment'] = 'mag orientation'
+            else:
+                df[sample]['core_strike'] = df[sample]['sun_core_strike']
+                df[sample]['comment'] = 'sun orientation'
 
         #check for no comment
         if type(comment) == float and math.isnan(comment):
@@ -186,11 +209,11 @@ def main():
     csv_file = open(file_name)
     csv_str = ''
 
-    for i in range(4):
+    for i in range(5):
         csv_str += csv_file.readline()
 
     elev_line = csv_file.readline().split(',')
-    elev_line[1] = str(hdf['site_info']['elevation'])
+    elev_line[1] = str(hdf['site_info']['site_elevation'])
     csv_str += reduce(lambda x,y: x + ',' + y, elev_line)
 
     header = csv_file.readline()
@@ -201,7 +224,7 @@ def main():
         line = csv_file.readline()
         items = line.split(',')
         for i in range(len(header)):
-            if i == 1:
+            if i == 0:
                 continue
             elif header[i] == 'calculated_IGRF':
                 if type(df[sample][header[i]]) != str:
