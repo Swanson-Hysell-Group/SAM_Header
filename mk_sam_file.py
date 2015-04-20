@@ -142,7 +142,7 @@ def main():
 
         #decide which core_strike to use, default is sun_core_strike but if not supplied 
         #magnetic_core_strike will be used
-        if math.isnan(df[sample]['use_uncorrected_bedding']):
+        if type(df[sample]['use_uncorrected_bedding']) == float and math.isnan(df[sample]['use_uncorrected_bedding']):
             df[sample]['use_uncorrected_bedding'] = 'no'
         if (df[sample]['use_uncorrected_bedding']) == 'no' or (df[sample]['use_uncorrected_bedding']) == 'No' or (df[sample]['use_uncorrected_bedding']) == 'NO':
             if math.isnan(df[sample]['sun_core_strike']):
@@ -164,7 +164,7 @@ def main():
             comment = ''
 
         #insure input is valid
-        assert (len(site_id) <= 4),'Locality ID excedes 4 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
+        assert (len(site_id) <= 5),'Locality ID excedes 5 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html (although that says that 4 is the limit)'
         assert (len(comment) <= 255),'Sample comment excedes 255 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
         assert (len(str(sample)) <= 9),'Sample name excedes 9 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
         
@@ -213,6 +213,7 @@ def main():
         csv_str += csv_file.readline()
 
     elev_line = csv_file.readline().split(',')
+    print(elev_line)
     elev_line[1] = str(hdf['site_info']['site_elevation'])
     csv_str += reduce(lambda x,y: x + ',' + y, elev_line)
 
