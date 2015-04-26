@@ -1,9 +1,7 @@
 import pandas as pd
-import math,sys,time
-from pmag import dosundec as sundec
-from ipmag import igrf
+import math,sys,time,os
+from mk_sam_utilities import *
 from datetime import datetime as dt
-from to_year_fraction import *
 from functools import reduce
 
 def main():
@@ -15,7 +13,7 @@ def main():
         Takes formated CSV and creates and writes a .sam header file and a set of sample files for any number of samples.
 
     SYNTAX
-        ~/$ python mk_sam_file.py site.csv
+        ~/$ python mk_sam_file.py site.csv [optional - output_directory]
 
     OUTPUT
         .sam and sample files
@@ -32,13 +30,27 @@ def main():
     #fetching comand line data
     file_name = sys.argv[1]
     try: directory = reduce(lambda x,y: x + '/' + y, file_name.split('/')[0:-1]) + '/'
-    except: directory = '/'
-    df_cols = ['sample_name','comment','strat_level','magnetic_core_strike','core_dip','bedding_strike','bedding_dip','use_uncorrected_bedding','mass','runs','sun_core_strike','calculated_IGRF','IGRF_local_dec','calculated_mag_dec','core_strike','corrected_bedding_strike']
+    except: directory = ''
+
+    try: output_directory = sys.argv[2]
+    except IndexError: output_directory = directory
+
+    if directory != '' and not directory.endswith('/'):
+        directory += '/'
+    if output_directory != ''  and not output_directory.endswith('/'):
+        output_directory += '/'
+
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+
+    print('Reading in file - ' + file_name)
+
+    df_cols = ['sample_name','comment','strat_level','magnetic_core_strike','core_dip','bedding_strike','bedding_dip','correct_bedding_using_local_dec','mass','runs','sun_core_strike','calculated_IGRF','IGRF_local_dec','calculated_mag_dec','core_strike','corrected_bedding_strike']
     sdf_cols = ['sample_name','shadow_angle','GMT_offset','year','month','days','hours','minutes']
 
     #file read in
     hdf = pd.read_csv(file_name,header=0,index_col=0,nrows=5,usecols=[0,1])
-    df = pd.read_csv(file_name,header=6,index_col=0,usecols=df_cols).transpose()
+    df = pd.read_csv(file_name,header=6,index_col=0,usecols=df_cols,dtype=object).transpose()
     sdf = pd.read_csv(file_name,header=6,index_col=0,usecols=sdf_cols).transpose()
 
     #variable assignments
@@ -53,7 +65,7 @@ def main():
 
     #calculate sun_core_strike for all samples
     for sample in samples:
-        if float('nan') == sdf[sample]['shadow_angle']:
+        if (sdf[sample].isnull()).any():
             df[sample]['sun_core_strike'] = float('nan')
             continue
         else:
@@ -78,13 +90,13 @@ def main():
             df[sample]['sun_core_strike'] = round(sundec(sundata),1)
 
     #calculate IGRF
-        if math.isnan(sdf[sample]['year']) or math.isnan(sdf[sample]['month']) or math.isnan(sdf[sample]['days']) or math.isnan(sdf[sample]['hours']) or math.isnan(sdf[sample]['minutes']):
+        if (sdf[sample]['GMT_offset':'minutes'].isnull()).any():
             df[sample]['calculated_IGRF'] = 'insufficient data'
         else:
             if math.isnan(float(hdf['site_info']['site_elevation'])):
                 hdf['site_info']['site_elevation'] = 0
             date = to_year_fraction(dt(int(sdf[sample]['year']),int(sdf[sample]['month']),int(sdf[sample]['days']),int(sdf[sample]['hours']),int(sdf[sample]['minutes'])))
-            df[sample]['calculated_IGRF'] = igrf([date,float(hdf['site_info']['site_elevation'])/1000,float(hdf['site_info']['site_lat']),float(hdf['site_info']['site_long'])])
+            df[sample]['calculated_IGRF'] = list(igrf([date,float(hdf['site_info']['site_elevation'])/1000,float(hdf['site_info']['site_lat']),float(hdf['site_info']['site_long'])]))
             if float(df[sample]['calculated_IGRF'][0]) > 180:
                 df[sample]['IGRF_local_dec'] = df[sample]['calculated_IGRF'][0] - 360
             else: 
@@ -94,10 +106,10 @@ def main():
             print(df[sample]['IGRF_local_dec'])
 
     #calculate magnetic declination
-        if math.isnan(df[sample]['sun_core_strike']) or math.isnan(df[sample]['magnetic_core_strike']):
+        if math.isnan(float(df[sample]['sun_core_strike'])) or math.isnan(float(df[sample]['magnetic_core_strike'])):
             df[sample]['calculated_mag_dec'] = 'insufficient data'
         else:
-            df[sample]['calculated_mag_dec'] = df[sample]['sun_core_strike'] - df[sample]['magnetic_core_strike']
+            df[sample]['calculated_mag_dec'] = float(df[sample]['sun_core_strike']) - float(df[sample]['magnetic_core_strike'])
 
     if abs(float(df.transpose()['IGRF_local_dec'].mean()) - float(df.transpose()['calculated_mag_dec'].mean())) > 5:
         print('WARNING: local IGRF declination & calculated magnetic declination where ' + str(abs(round(float(df.transpose()['IGRF_local_dec'].mean()) - float(df.transpose()['calculated_mag_dec'].mean()),2))) + ' degrees different')
@@ -107,7 +119,7 @@ def main():
     ##########CREATE .SAM HEADER FILE##################
 
     #setting name
-    sam_header = hdf['site_info']['site_name'] + '\r\n'
+    sam_header = hdf['site_info']['site_name'] + '\n'
 
     #creating long lat and dec info
     for value in site_values:
@@ -117,14 +129,15 @@ def main():
         else:
             sam_header += ' '*(5-len(hdf['site_info'][value]) + 1) + hdf['site_info'][value]
     sam_header += ' '*(5) + '0'
-    sam_header += '\r\n'
+    sam_header += '\n'
 
     #making writing sample info
     for sample in samples:
-        sam_header += hdf['site_info']['site_id'] + str(sample) + '\r\n'
+        sam_header += hdf['site_info']['site_id'] + str(sample) + '\n'
 
     #creating and writing file
-    sam_file = open(directory + hdf['site_info']['site_id'] + '.sam', 'w')
+    print('Writing file - ' + output_directory + hdf['site_info']['site_id'] + '.sam')
+    sam_file = open(output_directory + hdf['site_info']['site_id'] + '.sam', 'w+')
     sam_file.write(sam_header)
     sam_file.close()
 
@@ -142,14 +155,15 @@ def main():
 
         #decide which core_strike to use, default is sun_core_strike but if not supplied 
         #magnetic_core_strike will be used
-        if type(df[sample]['use_uncorrected_bedding']) == float and math.isnan(df[sample]['use_uncorrected_bedding']):
-            df[sample]['use_uncorrected_bedding'] = 'no'
-        if (df[sample]['use_uncorrected_bedding']) == 'no' or (df[sample]['use_uncorrected_bedding']) == 'No' or (df[sample]['use_uncorrected_bedding']) == 'NO':
+        if type(df[sample]['correct_bedding_using_local_dec']) == float and math.isnan(df[sample]['correct_bedding_using_local_dec']):
+            df[sample]['correct_bedding_using_local_dec'] = 'yes'
+        if (df[sample]['correct_bedding_using_local_dec']) == 'yes' or (df[sample]['correct_bedding_using_local_dec']) == 'Yes' or (df[sample]['correct_bedding_using_local_dec']) == 'YES':
+            df[sample]['corrected_bedding_strike'] = float(df[sample]['bedding_strike']) + float(df[sample]['IGRF_local_dec'])
             if math.isnan(df[sample]['sun_core_strike']):
-                df[sample]['core_strike'] = df[sample]['magnetic_core_strike'] + (df[sample]['IGRF_local_dec'])
+                df[sample]['core_strike'] = float(df[sample]['magnetic_core_strike']) + float(df[sample]['IGRF_local_dec'])
                 df[sample]['comment'] = 'mag orientation'
             else:
-                df[sample]['core_strike'] = df[sample]['sun_core_strike'] + (df[sample]['IGRF_local_dec'])
+                df[sample]['core_strike'] = float(df[sample]['sun_core_strike']) + float(df[sample]['IGRF_local_dec'])
                 df[sample]['comment'] = 'sun orientation'
         else:
             if math.isnan(df[sample]['sun_core_strike']):
@@ -169,7 +183,7 @@ def main():
         assert (len(str(sample)) <= 9),'Sample name excedes 9 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
         
         #write sample name and comment for sample file
-        new_file =  site_id + ' ' + str(sample) + ' ' + comment + '\r\n'
+        new_file =  site_id + ' ' + str(sample) + ' ' + comment + '\n'
 
         #start second line strat_level get's special treatment
         df[sample]['strat_level'] = str((df[sample]['strat_level']))
@@ -179,7 +193,10 @@ def main():
         #write in sample attributes on the second line
         for attribute in attributes:
 
-            assert (str(df[sample][attribute]).isdigit),str(attributes) + 'must all be numbers'
+#            assert (str(df[sample][attribute]).isdigit()),str(attribute) + ' is a requred numeric value'
+
+            if attribute == 'bedding_strike' and (df[sample]['correct_bedding_using_local_dec']) == 'yes' or (df[sample]['correct_bedding_using_local_dec']) == 'Yes' or (df[sample]['correct_bedding_using_local_dec']) == 'YES':
+                attribute = 'corrected_bedding_strike'
 
             if type(df[sample][attribute]) == float and math.isnan(df[sample][attribute]):
                 df[sample][attribute] = ''
@@ -192,30 +209,32 @@ def main():
 
             new_file += ' ' + ' '*(5-len(df[sample][attribute])) + df[sample][attribute]
 
-        new_file += '\r\n'
+        new_file += '\n'
         
         #if there are previous sample runs write that to the bottem of the file
         for run in runs:
-            new_file += run + '\r\n'
+            new_file += run + '\n'
         
         #create and write sample file
-        new_file = new_file.rstrip('\r\n') + '\r\n'
-        sample_file = open(directory + site_id + str(sample), 'w')
+        new_file = new_file.rstrip('\n') + '\n'
+        print('Writing file - ' + output_directory + site_id + str(sample))
+        sample_file = open(output_directory + site_id + str(sample), 'w+')
         sample_file.write(new_file)
         sample_file.close()
 
     ################Write New Values to .csv###################
 
-    csv_file = open(file_name)
+    csv_file = open(file_name, 'rU')
     csv_str = ''
 
     for i in range(5):
         csv_str += csv_file.readline()
 
-    elev_line = csv_file.readline().split(',')
-    print(elev_line)
-    elev_line[1] = str(hdf['site_info']['site_elevation'])
-    csv_str += reduce(lambda x,y: x + ',' + y, elev_line)
+    comma_count = csv_file.readline().count(',')
+    csv_str += 'site_elevation' + ',' + str(hdf['site_info']['site_elevation']) + ','*(comma_count-1) + '\n'
+    #elev_line = csv_file.readline().split(',')
+    #elev_line[1] = str(hdf['site_info']['site_elevation'])
+    #reduce(lambda x,y: x + ',' + y, elev_line)
 
     header = csv_file.readline()
     csv_str += header
@@ -228,10 +247,10 @@ def main():
             if i == 0:
                 continue
             elif header[i] == 'calculated_IGRF':
-                if type(df[sample][header[i]]) != str:
-                    items[i] = str(list(df[sample][header[i]])).replace(',',';')
-                else:
+                if type(df[sample][header[i]]) == str or type(df[sample][header[i]]) == float:
                     items[i] = str(df[sample][header[i]])
+                else:
+                    items[i] = str(list(df[sample][header[i]])).replace(',',';')
             elif header[i] in df[sample].keys():
                 items[i] = str(df[sample][header[i]])
             elif header[i] in sdf[sample].keys():
@@ -240,8 +259,24 @@ def main():
                 raise KeyError('there is no item: ' + header[i])
         csv_str += reduce(lambda x,y: x + ',' + y, items) + '\n'
 
-    new_csv_file = open(file_name,'w')
+    print('Writing file - ' + output_directory + hdf['site_info']['site_id'] + '.csv' + "\n")
+    new_csv_file = open(output_directory + hdf['site_info']['site_id'] + '.csv','w+')
     new_csv_file.write(csv_str)
     new_csv_file.close()
 
+def fix_line_breaks():
+    """ Reads in the file given as a command line argument and rewrites it both line 
+        break types '\ r' and '\ n' so that python will for sure register all lines
+    """
+    file_name = sys.argv[1]
+    #fix line breaks between different OS and python's default
+    csv_file = open(file_name, 'r')
+    csv_str = csv_file.read()
+    if csv_str.find('\r\n') == -1: fixed_lines = csv_str.replace('\r\n','\n')
+    else: fixed_lines = csv_str.replace('\r','\n')
+    new_csv_file = open(file_name, 'w')
+    new_csv_file.write(fixed_lines)
+    csv_file.close()
+
+fix_line_breaks()
 main()
