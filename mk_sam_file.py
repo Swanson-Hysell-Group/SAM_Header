@@ -163,7 +163,7 @@ def main():
                 df[sample]['core_strike'] = float(df[sample]['magnetic_core_strike']) + float(df[sample]['IGRF_local_dec'])
                 df[sample]['comment'] = 'mag orientation'
             else:
-                df[sample]['core_strike'] = float(df[sample]['sun_core_strike']) + float(df[sample]['IGRF_local_dec'])
+                df[sample]['core_strike'] = float(df[sample]['sun_core_strike'])
                 df[sample]['comment'] = 'sun orientation'
         else:
             if math.isnan(df[sample]['sun_core_strike']):
