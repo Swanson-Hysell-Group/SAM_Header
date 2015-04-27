@@ -157,7 +157,7 @@ def main():
         #magnetic_core_strike will be used
         if type(df[sample]['correct_bedding_using_local_dec']) == float and math.isnan(df[sample]['correct_bedding_using_local_dec']):
             df[sample]['correct_bedding_using_local_dec'] = 'yes'
-        if (df[sample]['correct_bedding_using_local_dec']) == 'yes' or (df[sample]['correct_bedding_using_local_dec']) == 'Yes' or (df[sample]['correct_bedding_using_local_dec']) == 'YES':
+        if ((df[sample]['correct_bedding_using_local_dec']) == 'yes' or (df[sample]['correct_bedding_using_local_dec']) == 'Yes' or (df[sample]['correct_bedding_using_local_dec']) == 'YES') and not math.isnan(df[sample]['IGRF_local_dec']):
             df[sample]['corrected_bedding_strike'] = float(df[sample]['bedding_strike']) + float(df[sample]['IGRF_local_dec'])
             if math.isnan(df[sample]['sun_core_strike']):
                 df[sample]['core_strike'] = float(df[sample]['magnetic_core_strike']) + float(df[sample]['IGRF_local_dec'])
@@ -195,7 +195,7 @@ def main():
 
 #            assert (str(df[sample][attribute]).isdigit()),str(attribute) + ' is a requred numeric value'
 
-            if attribute == 'bedding_strike' and (df[sample]['correct_bedding_using_local_dec']) == 'yes' or (df[sample]['correct_bedding_using_local_dec']) == 'Yes' or (df[sample]['correct_bedding_using_local_dec']) == 'YES':
+            if attribute == 'bedding_strike' and ((df[sample]['correct_bedding_using_local_dec']) == 'yes' or (df[sample]['correct_bedding_using_local_dec']) == 'Yes' or (df[sample]['correct_bedding_using_local_dec']) == 'YES') and not math.isnan(df[sample]['corrected_bedding_strike']):
                 attribute = 'corrected_bedding_strike'
 
             if type(df[sample][attribute]) == float and math.isnan(df[sample][attribute]):
