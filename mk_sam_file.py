@@ -65,10 +65,10 @@ def main():
 
     #calculate sun_core_strike for all samples
     for sample in samples:
-        if (sdf[sample].isnull()).any():
-            df[sample]['sun_core_strike'] = float('nan')
-            continue
-        else:
+        if (not sdf[sample].isnull().any()):
+#            df[sample]['sun_core_strike'] = float('nan')
+#            continue
+#        else:
             time_values = []
             for i in range(len(time_types)):
                  time_values.append(str(int(sdf[sample][time_types[i]])))
@@ -90,11 +90,14 @@ def main():
             df[sample]['sun_core_strike'] = round(sundec(sundata),1)
 
     #calculate IGRF
-        if (sdf[sample]['GMT_offset':'minutes'].isnull()).any():
-            df[sample]['calculated_IGRF'] = 'insufficient data'
+        if (sdf[sample]['GMT_offset':'month'].isnull()).any():
+            raise ValueError("not enough data to calculate IGRF to correct bedding please input at least GMT_offset, year, month, day of measurement\n")
         else:
             if math.isnan(float(hdf['site_info']['site_elevation'])):
                 hdf['site_info']['site_elevation'] = 0
+            for time_type in time_types:
+                if math.isnan(float(sdf[sample][time_type])):
+                    sdf[sample][time_type] = 1;
             date = to_year_fraction(dt(int(sdf[sample]['year']),int(sdf[sample]['month']),int(sdf[sample]['days']),int(sdf[sample]['hours']),int(sdf[sample]['minutes'])))
             df[sample]['calculated_IGRF'] = list(igrf([date,float(hdf['site_info']['site_elevation'])/1000,float(hdf['site_info']['site_lat']),float(hdf['site_info']['site_long'])]))
             if float(df[sample]['calculated_IGRF'][0]) > 180:
@@ -111,10 +114,12 @@ def main():
         else:
             df[sample]['calculated_mag_dec'] = float(df[sample]['sun_core_strike']) - float(df[sample]['magnetic_core_strike'])
 
-    if abs(float(df.transpose()['IGRF_local_dec'].mean()) - float(df.transpose()['calculated_mag_dec'].mean())) > 5:
-        print('WARNING: local IGRF declination & calculated magnetic declination where ' + str(abs(round(float(df.transpose()['IGRF_local_dec'].mean()) - float(df.transpose()['calculated_mag_dec'].mean()),2))) + ' degrees different')
-    print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
-    print('Standard Deviation of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].std()))
+#    if abs(float(df.transpose()['IGRF_local_dec'].mean()) - float(df.transpose()['calculated_mag_dec'].mean())) > 5:
+#        print('WARNING: local IGRF declination & calculated magnetic declination where ' + str(abs(round(float(df.transpose()['IGRF_local_dec'].mean()) - float(df.transpose()['calculated_mag_dec'].mean()),2))) + ' degrees different')
+#    print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
+#    print('Standard Deviation of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].std()))
+
+    print('---------------------OUTPUT-----------------------')
 
     ##########CREATE .SAM HEADER FILE##################
 
@@ -147,7 +152,6 @@ def main():
 
         #assign variables for easy refrence
         site_id = hdf['site_info']['site_id']
-        comment = df[sample]['comment']
         if not math.isnan(df[sample]['runs']):
             runs = df[sample]['runs'].split(';')
         else:
@@ -157,21 +161,18 @@ def main():
         #magnetic_core_strike will be used
         if type(df[sample]['correct_bedding_using_local_dec']) == float and math.isnan(df[sample]['correct_bedding_using_local_dec']):
             df[sample]['correct_bedding_using_local_dec'] = 'yes'
-        if ((df[sample]['correct_bedding_using_local_dec']) == 'yes' or (df[sample]['correct_bedding_using_local_dec']) == 'Yes' or (df[sample]['correct_bedding_using_local_dec']) == 'YES') and not math.isnan(df[sample]['IGRF_local_dec']):
-            df[sample]['corrected_bedding_strike'] = float(df[sample]['bedding_strike']) + float(df[sample]['IGRF_local_dec'])
+        if not math.isnan(df[sample]['IGRF_local_dec']):
             if math.isnan(df[sample]['sun_core_strike']):
                 df[sample]['core_strike'] = float(df[sample]['magnetic_core_strike']) + float(df[sample]['IGRF_local_dec'])
-                df[sample]['comment'] = 'mag orientation'
+                df[sample]['comment'] = 'mag compass orientation (IGRF corrected)'
             else:
                 df[sample]['core_strike'] = float(df[sample]['sun_core_strike'])
-                df[sample]['comment'] = 'sun orientation'
-        else:
-            if math.isnan(df[sample]['sun_core_strike']):
-                df[sample]['core_strike'] = df[sample]['magnetic_core_strike']
-                df[sample]['comment'] = 'mag orientation'
-            else:
-                df[sample]['core_strike'] = df[sample]['sun_core_strike']
-                df[sample]['comment'] = 'sun orientation'
+                df[sample]['comment'] = 'sun compass orientation'
+
+        if ((df[sample]['correct_bedding_using_local_dec']) == 'yes' or (df[sample]['correct_bedding_using_local_dec']) == 'Yes' or (df[sample]['correct_bedding_using_local_dec']) == 'YES'):
+            df[sample]['corrected_bedding_strike'] = float(df[sample]['bedding_strike']) + float(df[sample]['IGRF_local_dec'])
+
+        comment = df[sample]['comment']
 
         #check for no comment
         if type(comment) == float and math.isnan(comment):
