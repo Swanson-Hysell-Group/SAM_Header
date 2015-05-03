@@ -13,4 +13,4 @@ This repository contains Python code that takes paleomagnetic core orientation d
 
 ##Dependencies
 
-This code utilizes Python functions from the PmagPy library (https://github.com/ltauxe/PmagPy). If the code is not working for you, download PmagPy and make sure you have added it to $PYTHONPATH.
+All dependencies have been collected in the mk_sam_utilities.py which is included in the repository.

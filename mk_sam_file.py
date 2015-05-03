@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import pandas as pd
 import math,sys,time,os
 from mk_sam_utilities import *
@@ -40,7 +41,7 @@ def main():
     if output_directory != ''  and not output_directory.endswith('/'):
         output_directory += '/'
 
-    if not os.path.exists(output_directory):
+    if output_directory != '' and not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
     print('Reading in file - ' + file_name)
