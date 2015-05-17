@@ -95,7 +95,7 @@ def main():
             raise ValueError("not enough data to calculate IGRF to correct bedding please input at least GMT_offset, year, month, day of measurement\n")
         else:
             if math.isnan(float(hdf['site_info']['site_elevation'])):
-                hdf['site_info']['site_elevation'] = 0
+                hdf['site_info']['site_elevation'] = 0.0
             for time_type in time_types:
                 if math.isnan(float(sdf[sample][time_type])):
                     sdf[sample][time_type] = 1;
@@ -108,6 +108,8 @@ def main():
             #print out the local IGRF
             print(hdf['site_info']['site_id'] + str(sample) + " has local IGRF declination of: ")
             print(df[sample]['IGRF_local_dec'])
+            if abs(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec'])) > 5:
+                print('WARNING: local IGRF declination & calculated magnetic declination where ' + str(abs(round(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec']),2))) + ' degrees different')
 
     #calculate magnetic declination
         if math.isnan(float(df[sample]['sun_core_strike'])) or math.isnan(float(df[sample]['magnetic_core_strike'])):
@@ -115,17 +117,15 @@ def main():
         else:
             df[sample]['calculated_mag_dec'] = float(df[sample]['sun_core_strike']) - float(df[sample]['magnetic_core_strike'])
 
-#    if abs(float(df.transpose()['IGRF_local_dec'].mean()) - float(df.transpose()['calculated_mag_dec'].mean())) > 5:
-#        print('WARNING: local IGRF declination & calculated magnetic declination where ' + str(abs(round(float(df.transpose()['IGRF_local_dec'].mean()) - float(df.transpose()['calculated_mag_dec'].mean()),2))) + ' degrees different')
-#    print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
-#    print('Standard Deviation of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].std()))
+    print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
+    print('Standard Deviation of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].std()))
 
     print('---------------------OUTPUT-----------------------')
 
     ##########CREATE .SAM HEADER FILE##################
 
     #setting name
-    sam_header = hdf['site_info']['site_name'] + '\n'
+    sam_header = hdf['site_info']['site_name'] + '\r\n'
 
     #creating long lat and dec info
     for value in site_values:
@@ -134,12 +134,12 @@ def main():
             sam_header += ' ' + hdf['site_info'][value]
         else:
             sam_header += ' '*(5-len(hdf['site_info'][value]) + 1) + hdf['site_info'][value]
-    sam_header += ' '*(5) + '0'
-    sam_header += '\n'
+    sam_header += ' '*(3) + '0.0'
+    sam_header += '\r\n'
 
     #making writing sample info
     for sample in samples:
-        sam_header += hdf['site_info']['site_id'] + str(sample) + '\n'
+        sam_header += hdf['site_info']['site_id'] + str(sample) + '\r\n'
 
     #creating and writing file
     print('Writing file - ' + output_directory + hdf['site_info']['site_id'] + '.sam')
@@ -185,9 +185,11 @@ def main():
         assert (len(str(sample)) <= 9),'Sample name excedes 9 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
         
         #write sample name and comment for sample file
-        new_file =  site_id + ' ' + str(sample) + ' ' + comment + '\n'
+        new_file =  site_id + ' ' + str(sample) + ' ' + comment + '\r\n'
 
         #start second line strat_level get's special treatment
+        if (math.isnan(float(df[sample]['strat_level']))):
+            df[sample]['strat_level'] = "     0"
         df[sample]['strat_level'] = str((df[sample]['strat_level']))
         assert (len(df[sample]['strat_level']) <= 6),'Length of strat_level excedes 6 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
         new_file += ' ' + ' '*(6-len(df[sample]['strat_level'])) + df[sample]['strat_level']
@@ -211,14 +213,14 @@ def main():
 
             new_file += ' ' + ' '*(5-len(df[sample][attribute])) + df[sample][attribute]
 
-        new_file += '\n'
+        new_file += '\r\n'
         
         #if there are previous sample runs write that to the bottem of the file
         for run in runs:
-            new_file += run + '\n'
+            new_file += run + '\r\n'
         
         #create and write sample file
-        new_file = new_file.rstrip('\n') + '\n'
+        new_file = new_file.rstrip('\r\n') + '\r\n'
         print('Writing file - ' + output_directory + site_id + str(sample))
         sample_file = open(output_directory + site_id + str(sample), 'w+')
         sample_file.write(new_file)
