@@ -109,7 +109,7 @@ def main():
             print(hdf['site_info']['site_id'] + str(sample) + " has local IGRF declination of: ")
             print(df[sample]['IGRF_local_dec'])
             if abs(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec'])) > 5:
-                print('WARNING: local IGRF declination & calculated magnetic declination where ' + str(abs(round(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec']),2))) + ' degrees different')
+                print('WARNING: local IGRF declination & calculated magnetic declination are ' + str(abs(round(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec']),2))) + ' degrees different')
 
     #calculate magnetic declination
         if math.isnan(float(df[sample]['sun_core_strike'])) or math.isnan(float(df[sample]['magnetic_core_strike'])):
