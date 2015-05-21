@@ -116,7 +116,7 @@ def main():
             print('insufficient data')
         else:
             df[sample]['calculated_mag_dec'] = float(df[sample]['sun_core_strike']) - float(df[sample]['magnetic_core_strike'])
-            print(str(round(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec']),2)))
+            print(str(round(float(df[sample]['sun_core_strike']) - float(df[sample]['magnetic_core_strike']),2)))
             if abs(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec'])) > 5:
                 print('WARNING: local IGRF declination & calculated magnetic declination are more than 5 degree different')
     print('')
