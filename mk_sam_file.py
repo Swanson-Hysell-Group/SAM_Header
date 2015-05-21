@@ -62,7 +62,7 @@ def main():
 
     ##########Find Calculated Values##################
 
-    print('---------------------STATISTICS-----------------------')
+    print('---------------------LOCAL MAGNETIC DECLINATION-----------------------')
 
     #calculate sun_core_strike for all samples
     for sample in samples:
@@ -121,9 +121,10 @@ def main():
                 print('WARNING: local IGRF declination & calculated magnetic declination are more than 5 degree different')
         print('')
     print('')
+    print('Site averages:')
     print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
-    print('Standard Deviation of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].std()))
-
+    print('Average of calculated local declination: ' + str(df.transpose()['calculated_mag_dec'].mean()))
+    print('')
     print('---------------------OUTPUT-----------------------')
 
     ##########CREATE .SAM HEADER FILE##################
