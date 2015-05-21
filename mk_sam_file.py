@@ -123,7 +123,7 @@ def main():
     print('')
     print('Site averages:')
     print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
-    print('Average of calculated local declination: ' + str(df.transpose()['calculated_mag_dec'].mean()))
+    #print('Average of calculated local declination: ' + str(df.transpose()['calculated_mag_dec'].mean()))
     print('')
     print('---------------------OUTPUT-----------------------')
 
