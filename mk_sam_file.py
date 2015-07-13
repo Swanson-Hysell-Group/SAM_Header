@@ -62,7 +62,7 @@ def main():
 
     ##########Find Calculated Values##################
 
-    print('---------------------STATISTICS-----------------------')
+    print('---------------------LOCAL MAGNETIC DECLINATION-----------------------')
 
     #calculate sun_core_strike for all samples
     for sample in samples:
@@ -108,18 +108,23 @@ def main():
             #print out the local IGRF
             print(hdf['site_info']['site_id'] + str(sample) + " has local IGRF declination of: ")
             print(df[sample]['IGRF_local_dec'])
-            if abs(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec'])) > 5:
-                print('WARNING: local IGRF declination & calculated magnetic declination where ' + str(abs(round(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec']),2))) + ' degrees different')
-
-    #calculate magnetic declination
+        
+         #calculate magnetic declination
+        print('The local declination calculated through magnetic and sun compass comparison is:')
         if math.isnan(float(df[sample]['sun_core_strike'])) or math.isnan(float(df[sample]['magnetic_core_strike'])):
             df[sample]['calculated_mag_dec'] = 'insufficient data'
+            print('insufficient data')
         else:
             df[sample]['calculated_mag_dec'] = float(df[sample]['sun_core_strike']) - float(df[sample]['magnetic_core_strike'])
-
+            print(str(round(float(df[sample]['sun_core_strike']) - float(df[sample]['magnetic_core_strike']),2)))
+            if abs(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec'])) > 5:
+                print('WARNING: local IGRF declination & calculated magnetic declination are more than 5 degree different')
+        print('')
+    print('')
+    print('Site averages:')
     print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
-    print('Standard Deviation of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].std()))
-
+    #print('Average of calculated local declination: ' + str(df.transpose()['calculated_mag_dec'].mean()))
+    print('')
     print('---------------------OUTPUT-----------------------')
 
     ##########CREATE .SAM HEADER FILE##################
