@@ -1,0 +1,7 @@
+,site_info,,,,,,,,,,,,,,,,,,,,,
+site_id,,,,,,,,,,,,,,,,,,,,,,
+site_name,,,,,,,,,,,,,,,,,,,,,,
+site_lat,,(ºN),,,,,,,,,,,,,,,,,,,,
+site_long,,(ºE),,,,,,Sun Compass Information,,,,,,,,,Calculated Fields,,,,,
+site_elevation,,(meters),only used if no sun data,,,,[default is yes] (yes or no),all sun compass info is optional,,,,,,,,Optional Field,default core strike,,,,,
+sample_name,comment,strat_level,magnetic_core_strike,core_dip,bedding_strike,bedding_dip,correct_bedding_using_local_dec,shadow_angle,GMT_offset,year,month,days,hours,minutes,mass,runs,sun_core_strike,calculated_IGRF,IGRF_local_dec,calculated_mag_dec,core_strike,corrected_bedding_strike
