@@ -19,4 +19,4 @@ This repository contains Python code that takes paleomagnetic core orientation d
 
 ##Dependencies
 
-The code requires the standard scientific python modules of numpy and scipy. Other necessary functions that were originally part of the PmagPy project (https://github.com/ltauxe/PmagPy/) that are dependencies for mk_sam_file.py have been collected in  mk_sam_utilities.py which is included in the repository.
+The code requires the standard scientific python modules of numpy and scipy. Installing the Enthought Canopy python distribution (https://www.enthought.com/products/canopy/) is a way you can get quickly setup with python and the dependencies needed to run this code. Other necessary functions that were originally part of the PmagPy project (https://github.com/ltauxe/PmagPy/) that are dependencies for mk_sam_file.py have been collected in  mk_sam_utilities.py which is included in the repository.
