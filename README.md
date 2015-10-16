@@ -13,8 +13,8 @@ This repository contains Python code that takes paleomagnetic core orientation d
 
 ##Things to know:
 
-- The code is currently set up so that if there are sun compass data those data are preferentially used for the sample orientations. If there are no sun compass data, the magnetic compass data are used.
-- When there are coexisting magnetic and sun compass data, the difference between them (which is the local magnetic declination) is printed into the .csv file. If this calculated local magnetic declination is more than 5º away from the model IGRF field, a warning is printed to the terminal while the program is executing.
+- The code is currently set up so that if there are sun compass data those data are preferentially used for the sample orientations. If there are no sun compass data, the magnetic compass data are used and they are corrected for the local magnetic declination calculated from the model IGRF field. Note that in both cases, the local magnetic declination value in the .sam file is set to be zero since the orientations are already corrected.
+- When there are coexisting magnetic and sun compass data, the difference between them (which is the local magnetic declination) is printed into the .csv file. If this calculated local magnetic declination is more than 5º away from the model IGRF field, a warning is printed to the terminal while the program is executing. It is recommended to examine the modified .csv file after the code is executed to inspect these calculated local magnetic declination values.
 - Bedding orientation should be entered as strike and dip. The column 'correct_bedding_using_local_dec' takes either 'yes' or 'no'. If 'yes' the local calculated IGRF declination will be used to correct the bedding strike. If 'no', the bedding strike will be left uncorrected.
 
 ##Dependencies
