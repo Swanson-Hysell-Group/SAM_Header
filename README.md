@@ -11,6 +11,12 @@ This repository contains Python code that takes paleomagnetic core orientation d
 ```
 - The code should then generate a .sam header file as well as sample files for each sample in the site.
 
+##Required fields:
+
+Each sample header requires these fields: core_strike,	core_dip,	bedding_strike,	bedding_dip, mass/volume
+
+If no tilt-correction is necessary enter 0 for bedding_strike and 0 for bedding_dip. If there is no mass or volume data, enter 1.0.
+
 ##Things to know:
 
 - The code is currently set up so that if there are sun compass data those data are preferentially used for the sample orientations. If there are no sun compass data, the magnetic compass data are used and they are corrected for the local magnetic declination calculated from the model IGRF field. Note that in both cases, the local magnetic declination value in the .sam file is set to be zero since the orientations are already corrected.
