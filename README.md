@@ -22,7 +22,7 @@ This repository contains Python code that takes paleomagnetic core orientation d
 ##Optional fields: 
 
 - *correct_bedding_using_local_dec* This field should either be 'yes' or 'no'. If 'yes' ['yes' is the default if the field is left blank which is why this field is optional] the local calculated IGRF declination will be used to correct the bedding strike. If 'no', the bedding strike will be left uncorrected.
-- *shadow_angle* is the angle read from a sun compass. The code processes these data using the convention of a counter-clockwise sun compass(the type used on a Pomeroy orienting fixture. If a clockwise sun compass is used instead (we use these in our lab for block sampling), then the data need to be transformed to be counter-clockwise upon entry.
+- *shadow_angle* is the angle read from a sun compass. The code processes these data using the convention of a counter-clockwise sun compass (the type used on a Pomeroy orienting fixture). If a clockwise sun compass is used instead (we use these in our lab for block sampling), then the data need to be transformed to be counter-clockwise upon entry.
 - *GMT_offset* is the time difference between the local time and Greenwich Mean Time. What should be entered is the number of hours to SUBTRACT from local time to get GMT. For example, Ethiopia is 3 hours ahead of GMT so the value that should be entered is 3. In the summer months in Minnesota, the time is CDT which is 5 hours behind GMT so the value that should be entered is -5.
 - *year*,	*month*,	*days*,	*hours*,	*minutes* are required date/time information if sun compass data are provided.
 
