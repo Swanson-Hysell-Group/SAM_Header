@@ -268,10 +268,12 @@ def main():
                 raise KeyError('there is no item: ' + header[i])
         csv_str += reduce(lambda x,y: x + ',' + y, items) + '\n'
 
-    print('Writing file - ' + output_directory + hdf['site_info']['site_id'] + '.csv' + "\n")
+    print('Writing file - ' + output_directory + hdf['site_info']['site_id'] + '.csv')
     new_csv_file = open(output_directory + hdf['site_info']['site_id'] + '.csv','w+')
     new_csv_file.write(csv_str)
     new_csv_file.close()
+
+    generate_inp_file(output_directory, df, hdf)
 
 def fix_line_breaks():
     """ Reads in the file given as a command line argument and rewrites it both line 
@@ -287,5 +289,54 @@ def fix_line_breaks():
     new_csv_file.write(fixed_lines)
     csv_file.close()
 
-fix_line_breaks()
-main()
+def generate_inp_file(od, df, hdf):
+    """
+    DESCRIPTION
+        Uses sample and site DataFrames from mk_sam_file.main function to generate
+
+        @param: od - output directory
+        @param: df - sample Dataframe
+        @param: hdf - site DataFrame
+
+    OUTPUT
+        .inp file
+
+    """
+
+    od = os.path.join(os.getcwd(), od)
+    if od != '' and not od.endswith('/'):
+        od += '/'
+
+    inps = ""
+
+    inps += "CIT\n"
+    inps += "sam_path\tfield_magic_codes\tlocation\tnaming_convention\tnum_terminal_char\tdont_average_replicate_measurements\tpeak_AF\ttime_stamp\n"
+    inps += (od + hdf['site_info']['site_id'] + '.sam\t')
+    if all(df.T['comment'] == 'sun compass orientation'): inps += 'SO-SUN\t'
+    elif all(df.T['comment'] == 'mag compass orientation (IGRF corrected)'): inps += 'SO-MAG\t'
+    else: inps += 'SO-SM\t'
+
+    inps += (hdf['site_info']['site_name'] + '\t')
+
+    first_sample_id = df.keys()[0]
+
+    if '-' in first_sample_id: inps += '2\t'; first_sample_id.replace('-','')
+    elif '.' in first_sample_id: inps += '3\t'; first_sample_id.replace('.','')
+    elif hdf['site_info']['site_id'] == first_sample_id: inps += '5\t'
+    else: inps += '4\t'
+
+    inps += str(len(first_sample_id)) + '\t'
+    inps += "True\t"
+    inps += "None\t"
+    inps += '0.0\n'
+
+    print('Writing file - ' + od + hdf['site_info']['site_id'] + '.inp')
+    if od != '' and not os.path.exists(od):
+        os.makedirs(od)
+    inpf = open(od + hdf['site_info']['site_id'] + '.inp', 'w+')
+    inpf.write(inps)
+    inpf.close()
+
+if __name__ == "__main__":
+    fix_line_breaks()
+    main()
