@@ -24,10 +24,6 @@ def main():
 
     #################READ IN FILES####################
 
-    if "-h" in sys.argv:
-        print main.__doc__
-        sys.exit()
-
     #fetching comand line data
     file_name = sys.argv[1]
     try: directory = reduce(lambda x,y: x + '/' + y, file_name.split('/')[0:-1]) + '/'
@@ -208,7 +204,8 @@ def main():
                 attribute = 'corrected_bedding_strike'
 
             if type(df[sample][attribute]) == float and math.isnan(df[sample][attribute]):
-                df[sample][attribute] = ''
+                if attribute == 'mass': df[sample][attribute] = '1.0'; print("no mass found for sample %s, setting to default = 1.0 g"%(sample))
+                else: df[sample][attribute] = ''
             else:
                 df[sample][attribute] = str(round(float(df[sample][attribute]),1))
 
@@ -338,5 +335,8 @@ def generate_inp_file(od, df, hdf):
     inpf.close()
 
 if __name__ == "__main__":
+    if '-h' in sys.argv:
+        help(main)
+        sys.exit()
     fix_line_breaks()
     main()
