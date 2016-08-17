@@ -38,3 +38,12 @@ This repository contains Python code that takes paleomagnetic core orientation d
 ##Dependencies
 
 The code requires the standard scientific python modules of numpy, scipy and pandas. Installing the Enthought Canopy python distribution (https://www.enthought.com/products/canopy/) is a way you can get quickly setup with python and the dependencies needed to run this code. The Anaconda distribution (Python 2.7) is another way to get set-up that is relatively straight forward (https://www.continuum.io/downloads). Other necessary functions from the PmagPy project (https://github.com/PmagPy/PmagPy/) that are dependencies for mk_sam_file.py have been collected in  mk_sam_utilities.py which is included in the repository such that you don't need to download PmagPy for the program to run.
+
+##Tips
+If your directory structure follows the general format of ```./<site>/<template>.csv``` and you have multiple templates ready for conversion, you might find the following command line regex useful:
+
+```find */*\.csv -exec python mk_sam_file.py '{}' \;```
+
+This regex navigates into all subdirectories, generates .sam header files for any CSV files it finds, and outputs them into the same subdirectory. Note that you must add the SAM_Header folder to your path so that the ```mk_sam_file.py``` program is accessible outside of your current directory. To do this, open ```.profile``` or ```.bash_profile``` (located in your home directory) in a text editor and add the following line:
+
+```export PATH=<absolute path to ‘SAM_Header’ folder>/SAM_Header/:./:$PATH```
