@@ -99,12 +99,12 @@ def main():
             df[sample]['calculated_IGRF'] = list(igrf([date,float(hdf['site_info']['site_elevation'])/1000,float(hdf['site_info']['site_lat']),float(hdf['site_info']['site_long'])]))
             if float(df[sample]['calculated_IGRF'][0]) > 180:
                 df[sample]['IGRF_local_dec'] = df[sample]['calculated_IGRF'][0] - 360
-            else: 
+            else:
                 df[sample]['IGRF_local_dec'] = df[sample]['calculated_IGRF'][0]
             #print out the local IGRF
             print(hdf['site_info']['site_id'] + str(sample) + " has local IGRF declination of: ")
             print(df[sample]['IGRF_local_dec'])
-        
+
          #calculate magnetic declination
         print('The local declination calculated through magnetic and sun compass comparison is:')
         if math.isnan(float(df[sample]['sun_core_strike'])) or math.isnan(float(df[sample]['magnetic_core_strike'])):
@@ -159,7 +159,7 @@ def main():
         else:
             runs = []
 
-        #decide which core_strike to use, default is sun_core_strike but if not supplied 
+        #decide which core_strike to use, default is sun_core_strike but if not supplied
         #magnetic_core_strike will be used
         if type(df[sample]['correct_bedding_using_local_dec']) == float and math.isnan(df[sample]['correct_bedding_using_local_dec']):
             df[sample]['correct_bedding_using_local_dec'] = 'yes'
@@ -184,7 +184,7 @@ def main():
         assert (len(site_id) <= 5),'Locality ID excedes 5 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html (although that says that 4 is the limit)'
         assert (len(comment) <= 255),'Sample comment excedes 255 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
         assert (len(str(sample)) <= 9),'Sample name excedes 9 characters: refer too http://cires.colorado.edu/people/jones.craig/PMag_Formats.html'
-        
+
         #write sample name and comment for sample file
         new_file =  site_id + ' ' + str(sample) + ' ' + comment + '\r\n'
 
@@ -216,11 +216,11 @@ def main():
             new_file += ' ' + ' '*(5-len(df[sample][attribute])) + df[sample][attribute]
 
         new_file += '\r\n'
-        
+
         #if there are previous sample runs write that to the bottem of the file
         for run in runs:
             new_file += run + '\r\n'
-        
+
         #create and write sample file
         new_file = new_file.rstrip('\r\n') + '\r\n'
         print('Writing file - ' + output_directory + site_id + str(sample))
@@ -273,15 +273,17 @@ def main():
     generate_inp_file(output_directory, df, hdf)
 
 def fix_line_breaks():
-    """ Reads in the file given as a command line argument and rewrites it both line 
+    """ Reads in the file given as a command line argument and rewrites it both line
         break types '\ r' and '\ n' so that python will for sure register all lines
     """
     file_name = sys.argv[1]
     #fix line breaks between different OS and python's default
     csv_file = open(file_name, 'r')
     csv_str = csv_file.read()
-    if csv_str.find('\r\n') == -1: fixed_lines = csv_str.replace('\r\n','\n')
-    else: fixed_lines = csv_str.replace('\r','\n')
+    if csv_str.find('\r\n') != -1:
+        fixed_lines = csv_str.replace('\r\n','\n')
+    else:
+        fixed_lines = csv_str.replace('\r','\n')
     new_csv_file = open(file_name, 'w')
     new_csv_file.write(fixed_lines)
     csv_file.close()
