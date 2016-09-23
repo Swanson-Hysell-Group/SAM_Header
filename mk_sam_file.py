@@ -313,7 +313,7 @@ def generate_inp_file(od, df, hdf):
     elif all(df.T['comment'] == 'mag compass orientation (IGRF corrected)'): inps += 'SO-MAG\t'
     else: inps += 'SO-SM\t'
 
-    inps += (hdf['site_info']['site_name'] + '\t')
+    inps += (hdf['site_info']['site_name'] if hdf['site_info']['site_name']!='' or hdf['site_info']['site_name']!=None else 'unknown' + '\t')
 
     first_sample_id = df.keys()[0]
 
