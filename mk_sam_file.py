@@ -26,16 +26,11 @@ def main():
 
     #fetching comand line data
     file_name = sys.argv[1]
-    try: directory = reduce(lambda x,y: x + '/' + y, file_name.split('/')[0:-1]) + '/'
+    try: directory = os.path.split(file_name)[0]
     except: directory = ''
 
     try: output_directory = sys.argv[2]
     except IndexError: output_directory = directory
-
-    if directory != '' and not directory.endswith('/'):
-        directory += '/'
-    if output_directory != ''  and not output_directory.endswith('/'):
-        output_directory += '/'
 
     if output_directory != '' and not os.path.exists(output_directory):
         os.makedirs(output_directory)
@@ -143,8 +138,8 @@ def main():
         sam_header += hdf['site_info']['site_id'] + str(sample) + '\r\n'
 
     #creating and writing file
-    print('Writing file - ' + output_directory + hdf['site_info']['site_id'] + '.sam')
-    sam_file = open(output_directory + hdf['site_info']['site_id'] + '.sam', 'w+')
+    print('Writing file - ' + os.path.join(output_directory, hdf['site_info']['site_id'] + '.sam'))
+    sam_file = open(os.path.join(output_directory, hdf['site_info']['site_id']+ '.sam'), 'w+')
     sam_file.write(sam_header)
     sam_file.close()
 
@@ -223,8 +218,8 @@ def main():
 
         #create and write sample file
         new_file = new_file.rstrip('\r\n') + '\r\n'
-        print('Writing file - ' + output_directory + site_id + str(sample))
-        sample_file = open(output_directory + site_id + str(sample), 'w+')
+        print('Writing file - ' + os.path.join(output_directory, site_id + str(sample)))
+        sample_file = open(os.path.join(output_directory, site_id + str(sample)), 'w+')
         sample_file.write(new_file)
         sample_file.close()
 
@@ -244,7 +239,7 @@ def main():
 
     header = csv_file.readline()
     csv_str += header
-    header = header.strip('\n').split(',')
+    header = header.strip('\r\n').split(',')
 
     for sample in samples:
         line = csv_file.readline()
@@ -263,10 +258,10 @@ def main():
                 items[i] = str(sdf[sample][header[i]])
             else:
                 raise KeyError('there is no item: ' + header[i])
-        csv_str += reduce(lambda x,y: x + ',' + y, items) + '\n'
+        csv_str += reduce(lambda x,y: x + ',' + y, items) + '\r\n'
 
-    print('Writing file - ' + output_directory + hdf['site_info']['site_id'] + '.csv')
-    new_csv_file = open(output_directory + hdf['site_info']['site_id'] + '.csv','w+')
+    print('Writing file - ' + os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'))
+    new_csv_file = open(os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'),'w+')
     new_csv_file.write(csv_str)
     new_csv_file.close()
 
@@ -291,7 +286,7 @@ def fix_line_breaks():
 def generate_inp_file(od, df, hdf):
     """
     DESCRIPTION
-        Uses sample and site DataFrames from mk_sam_file.main function to generate
+        Uses sample and site DataFrames from mk_sam_file.main function to generate inp file
 
         @param: od - output directory
         @param: df - sample Dataframe
@@ -302,24 +297,20 @@ def generate_inp_file(od, df, hdf):
 
     """
 
-    od = os.path.join(os.getcwd(), od)
-    if od != '' and not od.endswith('/'):
-        od += '/'
-
     inps = ""
 
     inps += "CIT\n"
     inps += "sam_path\tfield_magic_codes\tlocation\tnaming_convention\tnum_terminal_char\tdont_average_replicate_measurements\tpeak_AF\ttime_stamp\n"
-    inps += (od + hdf['site_info']['site_id'] + '.sam\t')
+    inps += (os.path.join('.', hdf['site_info']['site_id'] + '.sam')) + '\t'
     if all(df.T['comment'] == 'sun compass orientation'): inps += 'SO-SUN\t'
     elif all(df.T['comment'] == 'mag compass orientation (IGRF corrected)'): inps += 'SO-MAG\t'
     else: inps += 'SO-SM\t'
 
-    inps += (hdf['site_info']['site_name'] if hdf['site_info']['site_name']!='' or hdf['site_info']['site_name']!=None else 'unknown' + '\t')
+    inps += (hdf['site_info']['site_name'] if hdf['site_info']['site_name']!='' or hdf['site_info']['site_name']!=None else 'unknown') + '\t'
 
     first_sample_id = df.keys()[0]
 
-    if '-' in first_sample_id: inps += '2\t'; first_sample_id.replace('-','')
+    if '-' in first_sample_id or '-' in hdf['site_info']['site_id']: inps += '2\t'; first_sample_id.replace('-','')
     elif '.' in first_sample_id: inps += '3\t'; first_sample_id.replace('.','')
     elif hdf['site_info']['site_id'] == first_sample_id: inps += '5\t'
     else: inps += '4\t'
@@ -329,10 +320,10 @@ def generate_inp_file(od, df, hdf):
     inps += "None\t"
     inps += '0.0\n'
 
-    print('Writing file - ' + od + hdf['site_info']['site_id'] + '.inp')
+    print('Writing file - ' + os.path.join(od, hdf['site_info']['site_id'] + '.inp'))
     if od != '' and not os.path.exists(od):
         os.makedirs(od)
-    inpf = open(od + hdf['site_info']['site_id'] + '.inp', 'w+')
+    inpf = open(os.path.join(od, hdf['site_info']['site_id'] + '.inp'), 'w+')
     inpf.write(inps)
     inpf.close()
 
