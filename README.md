@@ -12,7 +12,19 @@ This repository contains Python code that takes paleomagnetic core orientation d
 ```
 - The code should then generate a .sam header file as well as sample files for each sample in the site.
 
-##Required fields:
+##Site fields:
+
+The first six rows are site information. These following values pertain to the site.
+
+- *site_id* is required and is the name of the site (e.g. GB20-)
+- *site_name* is optional text that provides additional site information (e.g lava flows in the Gooseberry Basalts)
+- *site_lat* is the latitude of the site in decimal degrees (required)
+- *site_lon* is the longitude of the site in decimal degrees (required)
+- *site_elevation* is the elevation of the site in meters
+
+##Required sample fields:
+
+Rows 8 and onward are sample information. These following values pertain to the samples.
 
 - *magnetic_core_strike* is the strike of the ''core plate'' which is the plane perpendicular to the core axis. This number is the trend of the core axis + 90º.
 - *core_dip* is the dip of the ``core plate'' which is the plane perpendicular to the core axis. This number is the conjugate of the plunge of the core axis.
@@ -20,7 +32,7 @@ This repository contains Python code that takes paleomagnetic core orientation d
 - *bedding_dip* is the dip of the bedding. This value will be used for tilt-correcting the data.
 - *mass* is the mass of the specimen in grams. If you do not wish to enter mass data, enter 1.0 for each specimen.
 
-##Optional fields: 
+##Optional sample fields: 
 
 - *correct_bedding_using_local_dec* This field should either be 'yes' or 'no'. If 'yes' ['yes' is the default if the field is left blank which is why this field is optional] the local calculated IGRF declination will be used to correct the bedding strike. If 'no', the bedding strike will be left uncorrected.
 - *shadow_angle* is the angle read from a sun compass. The code processes these data using the convention of a counter-clockwise sun compass (the type used on a Pomeroy orienting fixture). If a clockwise sun compass is used instead (we use these in our lab for block sampling), then the data need to be transformed to be counter-clockwise upon entry.
