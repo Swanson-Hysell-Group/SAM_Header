@@ -23,12 +23,12 @@ def doigrf(long,lat,alt,date,**kwargs):
     called with doigrf(long,lat,alt,date,**kwargs)
 #       calculates the interpolated (<2010) or extrapolated (>2010) main field and
 #       secular variation coefficients and passes these to the Malin and Barraclough
-#       routine to calculate the IGRF field. dgrf coefficients for 1945 to 2005, igrf for pre 1945 and post 2010 
-#       from http://www.ngdc.noaa.gov/IAGA/vmod/igrf.html 
+#       routine to calculate the IGRF field. dgrf coefficients for 1945 to 2005, igrf for pre 1945 and post 2010
+#       from http://www.ngdc.noaa.gov/IAGA/vmod/igrf.html
 #
 #      for dates prior to between 1900 and 1600, this program uses coefficients from the GUFM1 model of Jackson et al. 2000
 #      prior to that, it uses either arch3k or one of the cals models
-#    
+#
 #
 #       input:
 #       long  = east longitude in degrees (0 to 360 or -180 to 180)
@@ -48,11 +48,11 @@ def doigrf(long,lat,alt,date,**kwargs):
 #
 #
     gh,sv=[],[]
-    colat = 90.-lat                                         
+    colat = 90.-lat
 #! convert to colatitude for MB routine
-    if long>0: long=long+360.                       
+    if long>0: long=long+360.
 # ensure all positive east longitudes
-    itype = 1                                                       
+    itype = 1
     models,igrf12coeffs=get_igrf12()
     if 'mod' in kwargs.keys():
         if kwargs['mod']=='arch3k':
@@ -68,7 +68,7 @@ def doigrf(long,lat,alt,date,**kwargs):
         else:
             return models,igrf12coeffs
     if date<-8000:
-        print 'too old'
+        print('too old')
         sys.exit()
     if date<-1000:
         model=date-date%50
@@ -433,7 +433,7 @@ def get_cals10k():
 
 
 def unpack(gh):
-    """ 
+    """
     unpacks gh list into l m g h type list
     """
     data=[]
@@ -481,7 +481,7 @@ def magsyn(gh,sv,b,date,itype,alt,colat,elong):
 # for extrapolation beyond 2005. Coefficients from Barton et al. PEPI, 97: 23-26
 # (1996), via web site for NOAA, World Data Center A. Modified to use
 #degree and
-# order 10 as per notes in Malin and Barraclough (1981). 
+# order 10 as per notes in Malin and Barraclough (1981).
 # coefficients for DGRF 1995 and IGRF 2005 are from http://nssdcftp.gsfc.nasa.gov/models/geomagnetic/igrf/fortran_code/
 # igrf subroutine calculates
 # the proper main field and secular variation coefficients (interpolated between
@@ -567,11 +567,11 @@ def magsyn(gh,sv,b,date,itype,alt,colat,elong):
             z = z - (fn + 1.0)*three*p[k]
             if st != 0.0: # else go to 5
                 y = y + (one*sl[m-1] - two*cl[m-1])*fm*p[k]/st
-            else: 
+            else:
 # 5
                 y = y + (one*sl[m-1] - two*cl[m-1])*q[k]*ct
             l = l + 2
-        else: 
+        else:
 # 7
             x = x + one*q[k]
             z = z - (fn + 1.0)*one*p[k]
@@ -596,7 +596,7 @@ def measurements_methods(meas_data,noave):
     sids=get_specs(meas_data)
 # list  of measurement records for this specimen
 #
-# step through spec by spec 
+# step through spec by spec
 #
     SpecTmps,SpecOuts=[],[]
     for spec in sids:
@@ -609,24 +609,24 @@ def measurements_methods(meas_data,noave):
             tmpmeths=rec['magic_method_codes'].split(":")
             meths=[]
             if "LP-TRM" in tmpmeths:TRM=1 # catch these suckers here!
-            if "LP-IRM-3D" in tmpmeths: 
+            if "LP-IRM-3D" in tmpmeths:
                 IRM3D=1 # catch these suckers here!
-            elif "LP-AN-TRM" in tmpmeths: 
+            elif "LP-AN-TRM" in tmpmeths:
                 ATRM=1 # catch these suckers here!
-            elif "LP-CR-TRM" in tmpmeths: 
+            elif "LP-CR-TRM" in tmpmeths:
                 CR=1 # catch these suckers here!
 #
 # otherwise write over existing method codes
 #
 # find NRM data (LT-NO)
 #
-            elif float(rec["measurement_temp"])>=273. and float(rec["measurement_temp"]) < 323.:   
+            elif float(rec["measurement_temp"])>=273. and float(rec["measurement_temp"]) < 323.:
 # between 0 and 50C is room T measurement
-                if ("measurement_dc_field" not in rec.keys() or float(rec["measurement_dc_field"])==0 or rec["measurement_dc_field"]=="") and ("measurement_ac_field" not in rec.keys() or float(rec["measurement_ac_field"])==0 or rec["measurement_ac_field"]==""): 
+                if ("measurement_dc_field" not in rec.keys() or float(rec["measurement_dc_field"])==0 or rec["measurement_dc_field"]=="") and ("measurement_ac_field" not in rec.keys() or float(rec["measurement_ac_field"])==0 or rec["measurement_ac_field"]==""):
 # measurement done in zero field!
-                    if  "treatment_temp" not in rec.keys() or rec["treatment_temp"].strip()=="" or (float(rec["treatment_temp"])>=273. and float(rec["treatment_temp"]) < 298.):   
+                    if  "treatment_temp" not in rec.keys() or rec["treatment_temp"].strip()=="" or (float(rec["treatment_temp"])>=273. and float(rec["treatment_temp"]) < 298.):
 # between 0 and 50C is room T treatment
-                        if "treatment_ac_field" not in rec.keys() or rec["treatment_ac_field"] =="" or float(rec["treatment_ac_field"])==0: 
+                        if "treatment_ac_field" not in rec.keys() or rec["treatment_ac_field"] =="" or float(rec["treatment_ac_field"])==0:
 # no AF
                             if "treatment_dc_field" not in rec.keys() or rec["treatment_dc_field"]=="" or float(rec["treatment_dc_field"])==0:# no IRM!
                                 if "LT-NO" not in meths:meths.append("LT-NO")
@@ -644,7 +644,7 @@ def measurements_methods(meas_data,noave):
 #
                     elif float(rec["treatment_temp"])>=323:  # treatment done at  high T
                         if TRM==1:
-                            if "LT-T-I" not in meths: meths.append("LT-T-I") # TRM - even if zero applied field! 
+                            if "LT-T-I" not in meths: meths.append("LT-T-I") # TRM - even if zero applied field!
                         elif "treatment_dc_field" not in rec.keys() or rec["treatment_dc_field"]=="" or float(rec["treatment_dc_field"])==0.: # no TRM
                             if  "LT-T-Z" not in meths: meths.append("LT-T-Z") # don't overwrite if part of a TRM experiment!
                         else: # yes TRM
@@ -694,9 +694,9 @@ def measurements_methods(meas_data,noave):
         if noave!=1:
             vdata,treatkeys=vspec_magic(NewSpecs) # averages replicate measurements, returns treatment keys that are being used
             if len(vdata)!=len(NewSpecs):
-                print spec,'started with ',Ninit,' ending with ',len(vdata)
+                print(spec,'started with ',Ninit,' ending with ',len(vdata))
                 NewSpecs=vdata
-                print "Averaged replicate measurements"
+                print("Averaged replicate measurements")
 #
 # now look through this specimen's records - try to figure out what experiment it is
 #
@@ -707,11 +707,11 @@ def measurements_methods(meas_data,noave):
     # collect all the infield steps and look for changes in dc field vector
     #
                 Steps,TI=[],1
-                for rec in  NewSpecs: 
+                for rec in  NewSpecs:
                     methods=get_list(NewSpecs,'magic_method_codes').split(":")
                     if "LT-T-I" in methods:Steps.append(rec)  # get all infield steps together
                 rec_bak=Steps[0]
-                if "treatment_dc_field_phi" in rec_bak.keys() and "treatment_dc_field_theta" in rec_bak.keys():   
+                if "treatment_dc_field_phi" in rec_bak.keys() and "treatment_dc_field_theta" in rec_bak.keys():
                     if rec_bak["treatment_dc_field_phi"] !="" and rec_bak["treatment_dc_field_theta"]!="":   # at least there is field orientation info
                         phi0,theta0=rec_bak["treatment_dc_field_phi"],rec_bak["treatment_dc_field_theta"]
                         for k in range(1,len(Steps)):
@@ -720,32 +720,32 @@ def measurements_methods(meas_data,noave):
                             if phi!=phi0 or theta!=theta0: ANIS=1   # if direction changes, is some sort of anisotropy experiment
                 if "LT-AF-I" in SpecMeths and "LT-AF-Z" in SpecMeths: # must be Shaw :(
                     experiment_name="LP-PI-TRM:LP-PI-ALT-AFARM"
-                elif TRM==1: 
+                elif TRM==1:
                     experiment_name="LP-TRM"
             else: TI= 0 # no infield steps at all
             if "LT-T-Z" in  SpecMeths and experiment_name=="": # thermal demag steps
-                if TI==0: 
+                if TI==0:
                     experiment_name="LP-DIR-T" # just ordinary thermal demag
-                elif TRM!=1: # heart pounding - could be some  kind of TRM normalized paleointensity or LP-TRM-TD experiment 
+                elif TRM!=1: # heart pounding - could be some  kind of TRM normalized paleointensity or LP-TRM-TD experiment
                     Temps=[]
                     for step in Steps: # check through the infield steps - if all at same temperature, then must be a demag of a total TRM with checks
                         if step['treatment_temp'] not in Temps:Temps.append(step['treatment_temp'])
-                    if len(Temps)>1: 
-                        experiment_name="LP-PI-TRM" # paleointensity normalized by TRM 
-                    else: 
+                    if len(Temps)>1:
+                        experiment_name="LP-PI-TRM" # paleointensity normalized by TRM
+                    else:
                         experiment_name="LP-TRM-TD" # thermal demag of a lab TRM (could be part of a LP-PI-TDS experiment)
                 TZ=1
             else: TZ= 0 # no zero field steps at all
             if "LT-AF-I" in  SpecMeths: # ARM steps
                 Steps=[]
-                for rec in  NewSpecs: 
+                for rec in  NewSpecs:
                     tmp=rec["magic_method_codes"].split(":")
                     methods=[]
                     for meth in tmp:
                         methods.append(meth.strip())
                     if "LT-AF-I" in methods:Steps.append(rec)  # get all infield steps together
                 rec_bak=Steps[0]
-                if "treatment_dc_field_phi" in rec_bak.keys() and "treatment_dc_field_theta" in rec_bak.keys():   
+                if "treatment_dc_field_phi" in rec_bak.keys() and "treatment_dc_field_theta" in rec_bak.keys():
                     if rec_bak["treatment_dc_field_phi"] !="" and rec_bak["treatment_dc_field_theta"]!="":   # at least there is field orientation info
                         phi0,theta0=rec_bak["treatment_dc_field_phi"],rec_bak["treatment_dc_field_theta"]
                         ANIS=0
@@ -755,7 +755,7 @@ def measurements_methods(meas_data,noave):
                             if phi!=phi0 or theta!=theta0: ANIS=1   # if direction changes, is some sort of anisotropy experiment
                         if ANIS==1:
                             experiment_name="LP-AN-ARM"
-                if experiment_name=="":  # not anisotropy of ARM - acquisition?   
+                if experiment_name=="":  # not anisotropy of ARM - acquisition?
                         field0=rec_bak["treatment_dc_field"]
                         ARM=0
                         for k in range(1,len(Steps)):
@@ -767,22 +767,22 @@ def measurements_methods(meas_data,noave):
                 AFI=1
             else: AFI= 0 # no ARM steps at all
             if "LT-AF-Z" in  SpecMeths and experiment_name=="": # AF demag steps
-                if AFI==0: 
+                if AFI==0:
                     experiment_name="LP-DIR-AF" # just ordinary AF demag
                 else: # heart pounding - a pseudothellier?
-                    experiment_name="LP-PI-ARM" 
+                    experiment_name="LP-PI-ARM"
                 AFZ=1
             else: AFZ= 0 # no AF demag at all
             if "LT-IRM" in SpecMeths: # IRM
                 Steps=[]
-                for rec in  NewSpecs: 
+                for rec in  NewSpecs:
                     tmp=rec["magic_method_codes"].split(":")
                     methods=[]
                     for meth in tmp:
                         methods.append(meth.strip())
                     if "LT-IRM" in methods:Steps.append(rec)  # get all infield steps together
                 rec_bak=Steps[0]
-                if "treatment_dc_field_phi" in rec_bak.keys() and "treatment_dc_field_theta" in rec_bak.keys():   
+                if "treatment_dc_field_phi" in rec_bak.keys() and "treatment_dc_field_theta" in rec_bak.keys():
                     if rec_bak["treatment_dc_field_phi"] !="" and rec_bak["treatment_dc_field_theta"]!="":   # at least there is field orientation info
                         phi0,theta0=rec_bak["treatment_dc_field_phi"],rec_bak["treatment_dc_field_theta"]
                         ANIS=0
@@ -791,9 +791,9 @@ def measurements_methods(meas_data,noave):
                             phi,theta=rec["treatment_dc_field_phi"],rec["treatment_dc_field_theta"]
                             if phi!=phi0 or theta!=theta0: ANIS=1   # if direction changes, is some sort of anisotropy experiment
                         if ANIS==1:experiment_name="LP-AN-IRM"
-                if experiment_name=="":  # not anisotropy of IRM - acquisition?   
+                if experiment_name=="":  # not anisotropy of IRM - acquisition?
                     field0=rec_bak["treatment_dc_field"]
-                    IRM=0 
+                    IRM=0
                     for k in range(1,len(Steps)):
                         rec=Steps[k]
                         field=rec["treatment_dc_field"]
@@ -805,7 +805,7 @@ def measurements_methods(meas_data,noave):
                 Steps=get_dictitem(NewSpecs,'magic_method_codes','LT-X','has')
                 if len(Steps)>0:
                     rec_bak=Steps[0]
-                    if "treatment_dc_field_phi" in rec_bak.keys() and "treatment_dc_field_theta" in rec_bak.keys():   
+                    if "treatment_dc_field_phi" in rec_bak.keys() and "treatment_dc_field_theta" in rec_bak.keys():
                         if rec_bak["treatment_dc_field_phi"] !="" and rec_bak["treatment_dc_field_theta"]!="":   # at least there is field orientation info
                             phi0,theta0=rec_bak["treatment_dc_field_phi"],rec_bak["treatment_dc_field_theta"]
                             ANIS=0
@@ -817,7 +817,7 @@ def measurements_methods(meas_data,noave):
             else: CHI=0 # no susceptibility at all
     #
     # now need to deal with special thellier experiment problems - first clear up pTRM checks and  tail checks
-    # 
+    #
             if experiment_name=="LP-PI-TRM": # is some sort of thellier experiment
                 rec_bak=NewSpecs[0]
                 tmp=rec_bak["magic_method_codes"].split(":")
@@ -834,7 +834,7 @@ def measurements_methods(meas_data,noave):
     # check if this is a pTRM check
     #
                     if float(rec["treatment_temp"])<float(rec_bak["treatment_temp"]): # went backward
-                        if "LT-T-I" in meths and "LT-T-Z" in methbak:  #must be a pTRM check after first z 
+                        if "LT-T-I" in meths and "LT-T-Z" in methbak:  #must be a pTRM check after first z
     #
     # replace LT-T-I method code with LT-PTRM-I
     #
@@ -893,17 +893,17 @@ def measurements_methods(meas_data,noave):
     #
                     if float(rec["treatment_temp"])>float(rec_bak["treatment_temp"]) and "LT-PTRM-I" not in methbak: # new pair?
                         if "LT-T-I" in meths:  # infield of this pair
-                                IZorZI="LP-PI-TRM-IZ" 
+                                IZorZI="LP-PI-TRM-IZ"
                                 IZ=1 # at least one IZ pair
-                        elif "LT-T-Z" in meths: #zerofield 
-                                IZorZI="LP-PI-TRM-ZI" 
+                        elif "LT-T-Z" in meths: #zerofield
+                                IZorZI="LP-PI-TRM-ZI"
                                 ZI=1 # at least one ZI pair
                     elif float(rec["treatment_temp"])>float(rec_bak["treatment_temp"]) and "LT-PTRM-I" in methbak and IZorZI!="LP-PI-TRM-ZI": # new pair after out of sequence PTRM check?
                         if "LT-T-I" in meths:  # infield of this pair
-                                IZorZI="LP-PI-TRM-IZ" 
+                                IZorZI="LP-PI-TRM-IZ"
                                 IZ=1 # at least one IZ pair
-                        elif "LT-T-Z" in meths: #zerofield 
-                                IZorZI="LP-PI-TRM-ZI" 
+                        elif "LT-T-Z" in meths: #zerofield
+                                IZorZI="LP-PI-TRM-ZI"
                                 ZI=1 # at least one ZI pair
                     if float(rec["treatment_temp"])==float(rec_bak["treatment_temp"]): # stayed same temp
                         if "LT-T-Z" in meths and "LT-T-I" in methbak and IZorZI=="LP-PI-TRM-ZI":  #must be a tail check
@@ -924,10 +924,10 @@ def measurements_methods(meas_data,noave):
                     methcode=""
                     for meth in newmeths:
                         methcode=methcode+meth+":"
-                    rec["magic_method_codes"]=methcode[:-1] 
+                    rec["magic_method_codes"]=methcode[:-1]
                     rec_bak=rec # moving on to next record, making current one the backup
                     methbak=rec_bak["magic_method_codes"].split(":") # get last specimen's method codes in a list
-                   
+
     #
     # done with this specimen's records, now  check if any pTRM checks or MD checks
     #
@@ -976,7 +976,7 @@ def measurements_methods(meas_data,noave):
                     measnum+=1
                     SpecOuts.append(rec)
             else:  # not a Thellier-Thellier  or a Shaw experiemnt
-                for rec in  NewSpecs: 
+                for rec in  NewSpecs:
                     if experiment_name=="":
                         rec["magic_method_codes"]="LT-NO"
                         rec["magic_experiment_name"]=spec+":LT-NO"
@@ -1010,11 +1010,11 @@ def cart2dir(cart):
     Rs=numpy.sqrt(Xs**2+Ys**2+Zs**2) # calculate resultant vector length
     Decs=(numpy.arctan2(Ys,Xs)/rad)%360. # calculate declination taking care of correct quadrants (arctan2) and making modulo 360.
     try:
-        Incs=numpy.arcsin(Zs/Rs)/rad # calculate inclination (converting to degrees) # 
+        Incs=numpy.arcsin(Zs/Rs)/rad # calculate inclination (converting to degrees) #
     except:
-        print 'trouble in cart2dir' # most likely division by zero somewhere
+        print('trouble in cart2dir') # most likely division by zero somewhere
         return numpy.zeros(3)
-        
+
     return numpy.array([Decs,Incs,Rs]).transpose() # return the directions list
 
 #def cart2dir(cart): # OLD ONE
@@ -1048,12 +1048,12 @@ def sundec(sundata):
          LAT,LON are the site latitude,longitude (negative for south and west respectively)
          SHADAZ is the shadow angle of the desired direction with respect to the sun.
     OUTPUT:
-      the declination of the desired direction wrt true north. 
+      the declination of the desired direction wrt true north.
     """
     rad=numpy.pi/180.
     iday=0
     timedate=sundata["date"]
-    timedate=timedate.split(":") 
+    timedate=timedate.split(":")
     year=int(timedate[0])
     mon=int(timedate[1])
     day=int(timedate[2])
@@ -1126,11 +1126,11 @@ def julian(mon,day,year):
     returns julian day
     """
     ig=15+31*(10+12*1582)
-    if year == 0: 
-        print "Julian no can do"
+    if year == 0:
+        print("Julian no can do")
         return
     if year < 0: year=year+1
-    if mon > 2:  
+    if mon > 2:
         julian_year=year
         julian_month=mon+1
     else:
