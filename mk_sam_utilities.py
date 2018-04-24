@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib, os, sys, random, pylab, string, exceptions
+import matplotlib, os, sys, random, pylab, string
 import matplotlib.pyplot as plt
 from numpy import random
 import numpy.linalg
