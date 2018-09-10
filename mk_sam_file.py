@@ -2,6 +2,9 @@
 
 import os
 import sys
+import argparse
+import textwrap
+import re
 import math
 import pandas as pd
 from mk_sam_utilities import *
@@ -9,7 +12,7 @@ from datetime import datetime as dt
 from functools import reduce
 
 
-def main():
+def main(csv_file, output_directory):
     """
     NAME
         mk_sam_file.py
@@ -31,16 +34,21 @@ def main():
     ###########################################################################
 
     # fetching comand line data
-    file_name = sys.argv[1]
+    # file_name = sys.argv[1]
+    file_name = csv_file
     directory = os.path.split(file_name)[0]
 
-    try:
-        output_directory = sys.argv[2]
-    except IndexError:
-        output_directory = directory
+    # try:
+    #     output_directory = sys.argv[2]
+    # except IndexError:
+    #     output_directory = directory
 
-    if output_directory != '' and not os.path.exists(output_directory):
-        os.makedirs(output_directory)
+    if output_directory is not None:
+        output_directory = os.path.expanduser(output_directory)
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+    else:
+        output_directory = directory
 
     print('Reading in file - ' + file_name)
 
@@ -338,28 +346,22 @@ def main():
     generate_inp_file(output_directory, df, hdf)
 
 
-def fix_line_breaks():
+def fix_line_breaks(file_name):
     """ Reads in the file given as a command line argument and rewrites it both line
         break types '\ r' and '\ n' so that python will for sure register all lines
     """
-    file_name = sys.argv[1]
     # fix line breaks between different OS and python's default
     try:
         csv_file = open(file_name, 'r')
         csv_str = csv_file.read()
     except UnicodeDecodeError:
         csv_file.close()
-        # I occasionally get encoding errors when reading in these particular
-        # csv files using the default encoding of my platform (this is what the
-        # try statement above is using; it is usually utf-8)
-        #
-        # It happens both in pandas and with the open() built-in. Switching to
-        # the encoding below generally does the trick, although I have no idea
-        # what the underlying problem is...
-        #  <09-08-18, Luke Fairchild> #
+        # Both pandas and the python open built-in sometimes complain about
+        # encoding of these csv files. Switching to the encoding below generally
+        # does the trick...no idea what the underlying problem is though
+        # <09-08-18, Luke Fairchild> #
         csv_file = open(file_name, 'r', encoding="ISO-8859-1")
         csv_str = csv_file.read()
-
     if csv_str.find('\r\n') != -1:
         fixed_lines = csv_str.replace('\r\n', '\n')
     else:
@@ -428,8 +430,58 @@ def generate_inp_file(od, df, hdf):
 
 
 if __name__ == "__main__":
-    if '-h' in sys.argv:
-        help(main)
-        sys.exit()
-    fix_line_breaks()
-    main()
+    # fix_line_breaks()
+    prog_desc = textwrap.dedent("""\
+            Using a formatted CSV, creates and writes a .sam header file and a
+            set of sample files. The program can run on multiple files provided
+            either as an explicit sequence:
+                $ mk_sam_file.py P1.csv P2.csv P3.csv
+            or as a glob pattern:
+                $ mk_sam_file.py P*.csv
+            """)
+    parser = argparse.ArgumentParser(prog="mk_sam_file.py", add_help=False,
+                                     description=prog_desc,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('csv_file', nargs='*',
+                        help=""".csv file(s). Required unless the --all option
+                        is given""")
+    config_opts = parser.add_argument_group(title="additional options")
+    config_opts.add_argument('-h', '--help', action='help',
+                             help='show this help message and exit')
+    config_opts.add_argument('-a', '--all', action='store_true',
+                             help="""Create .sam header files for all CSV files
+                             in the current directory.""")
+    # config_out = parser.add_mutually_exclusive_group()
+    config_opts.add_argument('--dirout', dest='output_directory', metavar='',
+                             help="""Output directory. If path does not exist,
+                             it will be created. To automatically configure
+                             output directories (based on csv name), use
+                             --auto-dirs.""")
+    config_opts.add_argument('--auto-dirs', action='store_true',
+                             help="""Write contents to a directory with same
+                             name as the csv file.""")
+    args = vars(parser.parse_args())
+    csv_file_list = args.pop('csv_file')
+
+    # if no 'read' option specified...
+    if len(csv_file_list) == 0 and not args['all']:
+        parser.error("Nothing to read.\nYou must provide file name(s) unless "
+                     "running with the --all option.")
+    # handle csv_file/--all argument conflicts
+    elif len(csv_file_list) != 0 and args['all']:
+        parser.error("Ambiguous; use file name(s) or --all (not both)")
+    # handle the --all option
+    elif len(csv_file_list) == 0 and args['all']:
+        # find all csv files in CWD
+        csv_file_list = []
+        filt = re.compile('.*\.csv')
+        # search for csv files in CWD (filtering directories)
+        for s in list(filter(os.path.isfile, os.listdir())):
+            if filt.match(s):
+                csv_file_list.append(s)
+    if args['auto_dirs']:
+        for fname in csv_file_list:
+            main(fname, fname.replace('.csv', ''))
+    else:
+        for fname in csv_file_list:
+            main(fname, args["output_directory"])
