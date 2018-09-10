@@ -422,6 +422,7 @@ def generate_inp_file(od, df, hdf):
     inps += '0.0\n'
 
     print('Writing file - ' + os.path.join(od, hdf['site_info']['site_id'] + '.inp'))
+    print('')
     if od != '' and not os.path.exists(od):
         os.makedirs(od)
     inpf = open(os.path.join(od, hdf['site_info']['site_id'] + '.inp'), 'w+')
@@ -433,21 +434,69 @@ if __name__ == "__main__":
     # fix_line_breaks()
     prog_desc = textwrap.dedent("""\
             Using a formatted CSV, creates and writes a .sam header file and a
-            set of sample files. The program can run on multiple files provided
-            either as an explicit sequence:
-                $ mk_sam_file.py P1.csv P2.csv P3.csv
-            or as a glob pattern:
-                $ mk_sam_file.py P*.csv
+            set of sample files. The program can be run on multiple files at a
+            time, which may be provided either as an explicit sequence of
+            arguments or as a glob pattern.
             """)
+
+    prog_epilog = textwrap.dedent("""\
+
+    Examples
+    --------
+    Create header and sample files from a single .csv:
+
+        $ mk_sam_file.py P1.csv
+
+        Output ('.' = current directory):
+            ./P1.csv(new)  ./P1.sam  ./P1.inp  ./P1-1a  ./P1-2a
+            ./P1-3a        ./P1-4a   ./P1-5a   ./P1-6a  [...]
+
+    Same as above, but write files to another directory:
+
+        $ mk_sam_file.py P1.csv --dirout P1_files
+
+        Output:
+            ./P1_files/P1.csv(new)  ./P1_files/P1.sam  ./P1_files/P1.inp
+            ./P1_files/P1-1         ./P1_files/P1-2    [...]
+
+    Run script on multiple .csv files:
+
+        $ mk_sam_file.py P1.csv P2.csv P3.csv
+        --OR--
+        $ mk_sam_file.py P[1-3].csv
+
+        Output:
+            ./P1.csv(new)  ./P1.sam  ./P1.inp  ./P1-1a  ./P1-2a  [...]
+            ./P2.csv(new)  ./P2.sam  ./P2.inp  ./P2-1a  ./P2-2a  [...]
+            ./P3.csv(new)  ./P3.sam  ./P3.inp  ./P3-1a  ./P3-2a  [...]
+
+    Other options --all and --auto-dirs:
+
+        $ mk_sam_file.py --all --auto-dirs
+
+        Output:
+            ./P1/P1.csv(new)  ./P1/P1.sam  ./P1/P1.inp  ./P1/P1-1a  [...]
+            ./P2/P2.csv(new)  ./P2/P2.sam  ./P2/P2.inp  ./P2/P2-1a  [...]
+            ...
+            ./Z15/Z15.csv(new)  ./Z15/Z15.sam  ./Z15/Z15.inp  ./Z15/Z15.1a  [...]
+            ./CF10/CF10.csv(new)  ./CF10/CF10.sam  ./CF10/CF10.inp  [...]
+            etc.
+
+    """)
+    # do not print examples unless long --help is given
+    if '--help' not in sys.argv:
+        prog_epilog = None
     parser = argparse.ArgumentParser(prog="mk_sam_file.py", add_help=False,
                                      description=prog_desc,
+                                     epilog=prog_epilog,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('csv_file', nargs='*',
                         help=""".csv file(s). Required unless the --all option
                         is given""")
     config_opts = parser.add_argument_group(title="additional options")
     config_opts.add_argument('-h', '--help', action='help',
-                             help='show this help message and exit')
+                             help="""Show this help message and exit. Use long
+                             form (--help) to include examples.""")
     config_opts.add_argument('-a', '--all', action='store_true',
                              help="""Create .sam header files for all CSV files
                              in the current directory.""")
@@ -461,17 +510,19 @@ if __name__ == "__main__":
                              help="""Write contents to a directory with same
                              name as the csv file.""")
     args = vars(parser.parse_args())
+    print(args)
     csv_file_list = args.pop('csv_file')
+    num_files = len(csv_file_list)
 
     # if no 'read' option specified...
-    if len(csv_file_list) == 0 and not args['all']:
+    if num_files == 0 and not args['all']:
         parser.error("Nothing to read.\nYou must provide file name(s) unless "
                      "running with the --all option.")
     # handle csv_file/--all argument conflicts
-    elif len(csv_file_list) != 0 and args['all']:
+    elif num_files != 0 and args['all']:
         parser.error("Ambiguous; use file name(s) or --all (not both)")
     # handle the --all option
-    elif len(csv_file_list) == 0 and args['all']:
+    elif num_files == 0 and args['all']:
         # find all csv files in CWD
         csv_file_list = []
         filt = re.compile('.*\.csv')
@@ -479,9 +530,22 @@ if __name__ == "__main__":
         for s in list(filter(os.path.isfile, os.listdir())):
             if filt.match(s):
                 csv_file_list.append(s)
-    if args['auto_dirs']:
-        for fname in csv_file_list:
-            main(fname, fname.replace('.csv', ''))
-    else:
-        for fname in csv_file_list:
-            main(fname, args["output_directory"])
+    if args['auto_dirs']:  # return name without file extension
+        def output_dir(x): return x.replace('.csv', '')
+    else:  # otherwise use given arg (None by default)
+        def output_dir(x): return args["output_directory"]
+    # now run all files through the main program
+    for i, fname in enumerate(csv_file_list, 1):
+        print(i, num_files)
+        try:
+            main(fname, output_dir(fname))
+        except Exception as ex:
+            print("Problem with file {}; file must be fixed manually and "
+                  "will be skipped for now. The following error occurred:\n"
+                  "{}: {}\n".format(fname, type(ex).__name__, ex))
+            if i != num_files and num_files != 1:
+                on_err = input(f"{(num_files-i)} files remaining. Continue? ([y], n) ")
+                if 'n' in on_err.lower():
+                    sys.exit()
+            else:
+                print("Aborting...")
