@@ -34,14 +34,8 @@ def main(csv_file, output_directory):
     ###########################################################################
 
     # fetching comand line data
-    # file_name = sys.argv[1]
     file_name = csv_file
     directory = os.path.split(file_name)[0]
-
-    # try:
-    #     output_directory = sys.argv[2]
-    # except IndexError:
-    #     output_directory = directory
 
     if output_directory is not None:
         output_directory = os.path.expanduser(output_directory)
@@ -49,8 +43,6 @@ def main(csv_file, output_directory):
             os.makedirs(output_directory)
     else:
         output_directory = directory
-
-    print('Reading in file - ' + file_name)
 
     df_cols = ['sample_name', 'comment', 'strat_level',
                'magnetic_core_strike', 'core_dip', 'bedding_strike',
@@ -61,7 +53,7 @@ def main(csv_file, output_directory):
     sdf_cols = ['sample_name', 'shadow_angle', 'GMT_offset',
                 'year', 'month', 'days', 'hours', 'minutes']
 
-    # file read in
+    # read in file
     hdf = pd.read_csv(file_name, header=0, index_col=0, nrows=5, usecols=[0, 1])
     df = pd.read_csv(file_name, header=6, index_col=0,
                      usecols=df_cols, dtype=object).transpose()
@@ -74,13 +66,14 @@ def main(csv_file, output_directory):
                   'bedding_strike', 'bedding_dip', 'mass']
     site_values = ['site_lat', 'site_long']
     time_types = ['year', 'month', 'days', 'hours', 'minutes']
+    # track number of declination-difference warnings
+    warning_count = 0
 
     ###########################################################################
     #                         Find Calculated Values                          #
     ###########################################################################
 
     print('---------------------LOCAL MAGNETIC DECLINATION-----------------------')
-
     # calculate sun_core_strike for all samples
     for sample in samples:
         if (not sdf[sample].isnull().any()):
@@ -110,9 +103,9 @@ def main(csv_file, output_directory):
 
     # calculate IGRF
         if (sdf[sample]['GMT_offset':'month'].isnull()).any():
-            raise ValueError("not enough data to calculate IGRF to correct "
-                             "bedding please input at least GMT_offset, "
-                             "year, month, day of measurement\n")
+            raise ValueError("Not enough data to calculate IGRF and correct "
+                             "bedding. Please input at least GMT_offset, "
+                             "year, month, and day of measurement.")
         else:
             if math.isnan(float(hdf['site_info']['site_elevation'])):
                 hdf['site_info']['site_elevation'] = 0.0
@@ -135,14 +128,15 @@ def main(csv_file, output_directory):
                 df[sample]['IGRF_local_dec'] = df[sample]['calculated_IGRF'][0]
             # print out the local IGRF
             print(hdf['site_info']['site_id'] + str(sample) + " has local IGRF declination of: ")
-            print(df[sample]['IGRF_local_dec'])
+            print("    {:+.2f}".format(df[sample]['IGRF_local_dec']))
 
         # calculate magnetic declination
-        print('The local declination calculated through magnetic and sun compass comparison is:')
-        if math.isnan(float(df[sample]['sun_core_strike'])) or \
-                math.isnan(float(df[sample]['magnetic_core_strike'])):
+        print('Magnetic & sun compass comparison gives local declination of:')
+        # print('Local declination calculated from magnetic and sun compass comparison is:')
+        if (math.isnan(float(df[sample]['sun_core_strike'])) or
+                math.isnan(float(df[sample]['magnetic_core_strike']))):
             df[sample]['calculated_mag_dec'] = 'insufficient data'
-            print('insufficient data')
+            print('    '+'insufficient data')
         else:
             df[sample]['calculated_mag_dec'] = (float(df[sample]['sun_core_strike']) -
                                                 float(df[sample]['magnetic_core_strike']))
@@ -150,16 +144,29 @@ def main(csv_file, output_directory):
                             float(df[sample]['magnetic_core_strike']), 2)))
             if abs(float(df[sample]['IGRF_local_dec']) -
                    float(df[sample]['calculated_mag_dec'])) > 5:
-                print("WARNING: local IGRF declination & calculated magnetic "
-                      "declination are more than 5 degree different")
+                print("\033[93m"+"WARNING: declinations differ by >5 degrees"+"\033[0m")
+                warning_count += 1
         print('')
-    print('')
+    if warning_count > 0:
+        warnct_report = textwrap.dedent(f"""\
+                  *{warning_count}* out of *{len(samples)}* samples yielded
+                  magnetic declination values that differ by more than 5 degrees
+                  from IGRF. Be sure to check values in {file_name} before
+                  proceeding.""")
+        print("\033[93m"+"\n".join(textwrap.wrap(warnct_report, width=70,
+                                                 initial_indent='WARNING: ',
+                                                 subsequent_indent='         '))+"\033[0m",
+              end='\n\n')
     print('Site averages:')
-    print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
-    # print('Average of calculated local declination: ' +
-    #       str(df.transpose()['calculated_mag_dec'].mean()))
-    print('')
-    print('---------------------OUTPUT-----------------------')
+    print("Average of local IGRF declination is: "
+          "{:+.4f}".format(df.transpose()['IGRF_local_dec'].mean()))
+    # read mag decs as numeric; values of 'insufficient data' become NaN
+    mag_decs = pd.to_numeric(df.transpose().calculated_mag_dec, errors='coerce')
+    if pd.notna(mag_decs.mean()):  # skip this if all values are NaN
+        print("Average of calculated local declination: "
+              "{:+.4f}  (N={:d})".format(mag_decs.mean(), mag_decs.count()))
+
+    print('\n---------------------OUTPUT-----------------------')
 
     ###########################################################################
     #                         Create .SAM Header File                         #
@@ -417,7 +424,6 @@ def generate_inp_file(od, df, hdf):
     inps += '0.0\n'
 
     print('Writing file - ' + os.path.join(od, hdf['site_info']['site_id'] + '.inp'))
-    print('')
     if od != '' and not os.path.exists(od):
         os.makedirs(od)
     inpf = open(os.path.join(od, hdf['site_info']['site_id'] + '.inp'), 'w+')
@@ -426,25 +432,28 @@ def generate_inp_file(od, df, hdf):
 
 
 if __name__ == "__main__":
+    # Universal newlines are more standardized now, so it might be safe to
+    # remove the fix_line_breaks functions or move it to utilities.
     # fix_line_breaks()
     prog_desc = textwrap.dedent("""\
             Using a formatted CSV, creates and writes a .sam header file and a
-            set of sample files. The program can be run on multiple files at a
-            time, which may be provided either as an explicit sequence of
-            arguments or as a glob pattern.
+            set of sample files. The program can be run on multiple files
+            provided either as an explicit sequence of names or as a glob
+            pattern (use --help to view examples).
             """)
 
     prog_epilog = textwrap.dedent("""\
 
     Examples
     --------
-    Create header and sample files from a single .csv:
+    Create header and sample files from a single .csv for site `P1` containing
+    samples `1a` through `6a`:
 
         $ mk_sam_file.py P1.csv
 
         Output ('.' = current directory):
-            ./P1.csv(new)  ./P1.sam  ./P1.inp  ./P1-1a  ./P1-2a
-            ./P1-3a        ./P1-4a   ./P1-5a   ./P1-6a  [...]
+            ./P1.csv(new) ./P1.sam  ./P1.inp  ./P1-1a  ./P1-2a
+            ./P1-3a       ./P1-4a   ./P1-5a   ./P1-6a
 
     Same as above, but write files to another directory:
 
@@ -505,7 +514,6 @@ if __name__ == "__main__":
                              help="""Write contents to a directory with same
                              name as the csv file.""")
     args = vars(parser.parse_args())
-    print(args)
     csv_file_list = args.pop('csv_file')
     num_files = len(csv_file_list)
 
@@ -529,18 +537,34 @@ if __name__ == "__main__":
         def output_dir(x): return x.replace('.csv', '')
     else:  # otherwise use given arg (None by default)
         def output_dir(x): return args["output_directory"]
+    # csv list may have changed; do a recount
+    num_files = len(csv_file_list)
+
     # now run all files through the main program
     for i, fname in enumerate(csv_file_list, 1):
-        print(i, num_files)
+        fcount = f"({i} / {num_files})"
+        startmsg = f"Reading in file - {fname}"
+        print(f"{startmsg:<35}{fcount:>35}\n")
         try:
             main(fname, output_dir(fname))
-        except Exception as ex:
-            print("Problem with file {}; file must be fixed manually and "
-                  "will be skipped for now. The following error occurred:\n"
-                  "{}: {}\n".format(fname, type(ex).__name__, ex))
+        except Exception:
+            ex_name = str(sys.exc_info()[0].__name__)
+            width = 80
+            print("\033[93m"+f"Exception occurred while running on file {fname}"+"\033[0m",
+                  end='\n\n')
+            print("\033[91m" +
+                  "\n".join(textwrap.wrap(str(sys.exc_info()[1]),
+                                          width=width - len(ex_name+": "),
+                                          initial_indent=ex_name+": ",
+                                          subsequent_indent=" "*(len(ex_name+": ")))) +
+                  "\033[0m", end='\n\n')
+            print("\033[93m"+"File will be skipped for now."+"\033[0m")
             if i != num_files and num_files != 1:
-                on_err = input(f"{(num_files-i)} files remaining. Continue? ([y], n) ")
+                on_err = input(f"{(num_files-i)} files remaining in queue. Continue? ([y], n) ")
                 if 'n' in on_err.lower():
+                    print("Aborting...")
                     sys.exit()
             else:
-                print("Aborting...")
+                print("No remaining files to read. Aborting...")
+        finally:
+            print("\n{:=^70}\n".format(""))
