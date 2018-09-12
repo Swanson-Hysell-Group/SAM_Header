@@ -136,10 +136,15 @@ def main():
             df[sample]['calculated_mag_dec'] = 'insufficient data'
             print('insufficient data')
         else:
-            df[sample]['calculated_mag_dec'] = (float(df[sample]['sun_core_strike']) -
-                                                float(df[sample]['magnetic_core_strike']))
-            print(str(round(float(df[sample]['sun_core_strike']) -
-                            float(df[sample]['magnetic_core_strike']), 2)))
+            calc_mag_dec = (float(df[sample]['sun_core_strike']) -
+                            float(df[sample]['magnetic_core_strike']))
+            # check sign of calculated mag dec (e.g. a calculated dec of +350
+            # should be converted to -10)
+            if calc_mag_dec > 180:
+                df[sample]['calculated_mag_dec'] = calc_mag_dec - 360
+            else:
+                df[sample]['calculated_mag_dec'] = calc_mag_dec
+            print("    {:+.2f}".format(df[sample]['calculated_mag_dec']))
             if abs(float(df[sample]['IGRF_local_dec']) -
                    float(df[sample]['calculated_mag_dec'])) > 5:
                 print("WARNING: local IGRF declination & calculated magnetic "
