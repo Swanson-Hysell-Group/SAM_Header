@@ -3,6 +3,7 @@ import numpy.linalg
 import time
 from datetime import datetime as dt
 from contextlib import ContextDecorator
+import traceback
 
 
 def igrf(input_list):

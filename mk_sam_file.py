@@ -406,10 +406,6 @@ def generate_inp_file(od, df, hdf):
     inps += (hdf['site_info']['site_name'] if hdf['site_info']['site_name']
              != '' or hdf['site_info']['site_name'] is not None else 'unknown') + '\t'
 
-    # for some files the value below was not a string and was not being
-    # converted to one like it is now in the line below---this was one of the
-    # infrequent errors I came across testing this code
-    #  <09-08-18, Luke Fairchild> #
     first_sample_id = str(df.keys()[0])
 
     if '-' in first_sample_id or '-' in hdf['site_info']['site_id']:
