@@ -439,7 +439,6 @@ def generate_inp_file(od, df, hdf):
     # initialize list keeping track of remaining (left) characters
     the_rest = sample_list
     # scan sample name from right to left
-    # while char_num > 0:
     while term_ct < char_num:
         # pop off last character from each name
         lastchar = [t[-1] for t in the_rest]
@@ -447,29 +446,15 @@ def generate_inp_file(od, df, hdf):
         term_ct += 1
         unique_chars = np.unique(lastchar)
         unique_rest = np.unique(the_rest)
-        # check if all terminal characters identical and remaining part of names
-        # are all unique (this will be the simplest case in which only one
-        # specimen per sample is in the list AND the specimen delimiters are the
-        # same)
-        # not perfect but it is tricky to figure out how best to do this
-        # programmatically...
+        # determine the number of characters distinguishing specimen/sample
+        # NOTE: this is not flawless, but appears to work in most cases.
         if len(unique_chars) == 1 and len(unique_rest) == sample_ct:
             # term_unique += 1
             term_unique = term_ct
             continue
         if len(unique_rest) < sample_ct:
-            print('BREAK')
             break
 
-        # else:
-        #     break
-        # stop counting if start to see matches in name slices
-        # elif len(unique_chars) > 1 and len(unique_rest) < sample_ct:
-        #     if len(unique_chars) == sample_ct:  # no sample/specimen distinction
-        #         break
-        #     if len(unique_rest)
-
-    print("got term chars of {} for samples: {}".format(term_unique, sample_list))
     inps += str(int(term_unique)) + '\t'
     inps += "True\t"
     inps += "None\t"
