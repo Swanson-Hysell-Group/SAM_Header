@@ -3,6 +3,7 @@
 import os
 import sys
 import math
+import numpy as np
 import pandas as pd
 from mk_sam_utilities import *
 from datetime import datetime as dt
@@ -383,6 +384,7 @@ def generate_inp_file(od, df, hdf):
 
     """
 
+    # initialize inp file
     inps = ""
     inps += "CIT\n"
     inps += "sam_path\tfield_magic_codes\tlocation\tnaming_convention\tnum_terminal_char\tdont_average_replicate_measurements\tpeak_AF\ttime_stamp\n"
@@ -397,24 +399,63 @@ def generate_inp_file(od, df, hdf):
     inps += (hdf['site_info']['site_name'] if hdf['site_info']['site_name']
              != '' or hdf['site_info']['site_name'] is not None else 'unknown') + '\t'
 
-    # for some files the value below was not a string and was not being
-    # converted to one like it is now in the line below---this was one of the
-    # infrequent errors I came across testing this code
-    #  <09-08-18, Luke Fairchild> #
+    # DETERMINE SITE NAMING CONVENTION
     first_sample_id = str(df.keys()[0])
-
-    if '-' in first_sample_id or '-' in hdf['site_info']['site_id']:
+    """Sample naming conventions:
+    [1] XXXXY: where XXXX is an arbitrary length site designation and Y
+    is the single character sample designation.  e.g., TG001a is the
+    first sample from site TG001.    [default]
+    [2] XXXX-YY: YY sample from site XXXX (XXX, YY of arbitary length)
+    [3] XXXX.YY: YY sample from site XXXX (XXX, YY of arbitary length)
+    [4-Z] XXXX[YYY]:  YYY is sample designation with Z characters from site XXX
+    [5] site name = sample name
+    [6] site name entered in site_name column in the orient.txt format input file
+    [7-Z] [XXX]YYY:  XXX is site designation with Z characters from samples  XXXYYY
+    """
+    # check for naming convention 2
+    if first_sample_id[0] == '-' or hdf['site_info']['site_id'][-1] == '-':
         inps += '2\t'
-        first_sample_id.replace('-', '')
-    elif '.' in first_sample_id:
+        # if delimiter in sample id, remove it
+        if first_sample_id[0] == '-':
+            first_sample_id.replace('-', '', 1)
+    # check for naming convention 3
+    elif first_sample_id[0] == '.' or hdf['site_info']['site_id'][-1] == '.':
         inps += '3\t'
-        first_sample_id.replace('.', '')
+        if first_sample_id[0] == '.':
+            first_sample_id.replace('.', '', 1)
+    # check for naming convention 5
     elif hdf['site_info']['site_id'] == first_sample_id:
         inps += '5\t'
+    # assign 4 as last resort -- should also notify user of uncertain values
     else:
         inps += '4\t'
 
-    inps += str(len(first_sample_id)) + '\t'
+    # DETERMINE NUMBER OF TERMINAL CHARACTERS
+    sample_list = list(map(str, df.keys()))
+    sample_ct = len(sample_list)
+    # get length of shortest sample name
+    char_num = len(min(sample_list, key=len))
+    term_ct, term_unique = 0, 0
+    # initialize list keeping track of remaining (left) characters
+    the_rest = sample_list
+    # scan sample name from right to left
+    while term_ct < char_num:
+        # pop off last character from each name
+        lastchar = [t[-1] for t in the_rest]
+        the_rest = [t[0:-1] for t in the_rest]
+        term_ct += 1
+        unique_chars = np.unique(lastchar)
+        unique_rest = np.unique(the_rest)
+        # determine the number of characters distinguishing specimen/sample
+        # NOTE: this is not flawless, but appears to work in most cases.
+        if len(unique_chars) == 1 and len(unique_rest) == sample_ct:
+            # term_unique += 1
+            term_unique = term_ct
+            continue
+        if len(unique_rest) < sample_ct:
+            break
+
+    inps += str(int(term_unique)) + '\t'
     inps += "True\t"
     inps += "None\t"
     inps += '0.0\n'
