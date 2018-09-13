@@ -1,10 +1,16 @@
 import sys
 import numpy.linalg
+import textwrap
+import argparse
 import time
 from datetime import datetime as dt
 from contextlib import ContextDecorator
 import traceback
 
+
+################################################################################
+#                               PmagPy functions                               #
+################################################################################
 
 def igrf(input_list):
     """
@@ -103,21 +109,21 @@ def doigrf(long, lat, alt, date, **kwargs):
         return x, y, z, f
 
 
-def unpack(gh):
-    """
-    unpacks gh list into l m g h type list
-    """
-    data = []
-    k, l = 0, 1
-    while k+1 < len(gh):
-        for m in range(l+1):
-            if m == 0:
-                data.append([l, m, gh[k], 0])
-                k += 1
-            else:
-                data.append([l, m, gh[k], gh[k+1]])
-                k += 2
-    return data
+# def unpack(gh):
+#     """
+#     unpacks gh list into l m g h type list
+#     """
+#     data = []
+#     k, l = 0, 1
+#     while k+1 < len(gh):
+#         for m in range(l+1):
+#             if m == 0:
+#                 data.append([l, m, gh[k], 0])
+#                 k += 1
+#             else:
+#                 data.append([l, m, gh[k], gh[k+1]])
+#                 k += 2
+#     return data
 
 
 def magsyn(gh, sv, b, date, itype, alt, colat, elong):
@@ -249,543 +255,6 @@ def magsyn(gh, sv, b, date, itype, alt, colat, elong):
     z = z*cd - one*sd
     f = numpy.sqrt(x*x + y*y + z*z)
     return x, y, z, f
-
-
-#def measurements_methods(meas_data, noave):
-#    """
-#    get list of unique specs
-#    """
-#    version_num = get_version()
-#    sids = get_specs(meas_data)
-#    # list  of measurement records for this specimen
-#    #
-#    # step through spec by spec
-#    #
-#    SpecTmps, SpecOuts = [], []
-#    for spec in sids:
-#        TRM, IRM3D, ATRM, CR = 0, 0, 0, 0
-#        expcodes = ""
-#        # first collect all data for this specimen and do lab treatments
-#        # list  of measurement records for this specimen
-#        SpecRecs = get_dictitem(meas_data, 'er_specimen_name', spec, 'T')
-#        for rec in SpecRecs:
-#            if 'measurement_flag' not in rec.keys():
-#                rec['measurement_flag'] = 'g'
-#            tmpmeths = rec['magic_method_codes'].split(":")
-#            meths = []
-#            if "LP-TRM" in tmpmeths:
-#                TRM = 1  # catch these suckers here!
-#            if "LP-IRM-3D" in tmpmeths:
-#                IRM3D = 1  # catch these suckers here!
-#            elif "LP-AN-TRM" in tmpmeths:
-#                ATRM = 1  # catch these suckers here!
-#            elif "LP-CR-TRM" in tmpmeths:
-#                CR = 1  # catch these suckers here!
-#            #
-#            # otherwise write over existing method codes
-#            #
-#            # find NRM data (LT-NO)
-#            #
-#            elif float(rec["measurement_temp"]) >= 273. and float(rec["measurement_temp"]) < 323.:
-#                # between 0 and 50C is room T measurement
-#                if ("measurement_dc_field" not in rec.keys() or
-#                        float(rec["measurement_dc_field"]) == 0 or
-#                        rec["measurement_dc_field"] == "") and \
-#                    ("measurement_ac_field" not in rec.keys() or
-#                        float(rec["measurement_ac_field"]) == 0 or
-#                        rec["measurement_ac_field"] == ""):
-#                    # measurement done in zero field!
-#                    if "treatment_temp" not in rec.keys() or \
-#                        rec["treatment_temp"].strip() == "" or \
-#                        (float(rec["treatment_temp"]) >= 273. and
-#                         float(rec["treatment_temp"]) < 298.):
-#                        # between 0 and 50C is room T treatment
-#                        if "treatment_ac_field" not in rec.keys() or \
-#                                rec["treatment_ac_field"] == "" or \
-#                                float(rec["treatment_ac_field"]) == 0:
-#                            # no AF
-#                            if "treatment_dc_field" not in rec.keys() or \
-#                                    rec["treatment_dc_field"] == "" or \
-#                                    float(rec["treatment_dc_field"]) == 0:  # no IRM!
-#                                if "LT-NO" not in meths:
-#                                    meths.append("LT-NO")
-#                            elif "LT-IRM" not in meths:
-#                                meths.append("LT-IRM")  # it's an IRM
-#                        #
-#                        # find AF/infield/zerofield
-#                        #
-#                        elif "treatment_dc_field" not in rec.keys() or \
-#                                rec["treatment_dc_field"] == "" or \
-#                                float(rec["treatment_dc_field"]) == 0:  # no ARM
-#                            if "LT-AF-Z" not in meths:
-#                                meths.append("LT-AF-Z")
-#                        else:  # yes ARM
-#                            if "LT-AF-I" not in meths:
-#                                meths.append("LT-AF-I")
-#                    #
-#                    # find Thermal/infield/zerofield
-#                    #
-#                    elif float(rec["treatment_temp"]) >= 323:  # treatment done at  high T
-#                        if TRM == 1:
-#                            if "LT-T-I" not in meths:
-#                                # TRM - even if zero applied field!
-#                                meths.append("LT-T-I")
-#                        elif "treatment_dc_field" not in rec.keys() or \
-#                                rec["treatment_dc_field"] == "" or \
-#                                float(rec["treatment_dc_field"]) == 0.:  # no TRM
-#                            if "LT-T-Z" not in meths:
-#                                # don't overwrite if part of a TRM experiment!
-#                                meths.append("LT-T-Z")
-#                        else:  # yes TRM
-#                            if "LT-T-I" not in meths:
-#                                meths.append("LT-T-I")
-#                    #
-#                    # find low-T infield,zero field
-#                    #
-#                    else:  # treatment done at low T
-#                        if "treatment_dc_field" not in rec.keys() or \
-#                                rec["treatment_dc_field"] == "" or \
-#                                float(rec["treatment_dc_field"]) == 0:  # no field
-#                            if "LT-LT-Z" not in meths:
-#                                meths.append("LT-LT-Z")
-#                        else:  # yes field
-#                            if "LT-LT-I" not in meths:
-#                                meths.append("LT-LT-I")
-#                if "measurement_chi_volume" in rec.keys() or "measurement_chi_mass" in rec.keys():
-#                    if "LP-X" not in meths:
-#                        meths.append("LP-X")
-#                elif "measurement_lab_dc_field" in rec.keys() and \
-#                        rec["measurement_lab_dc_field"] != 0:
-#                    # measurement in presence of dc field and not susceptibility; hysteresis!
-#                    if "LP-HYS" not in meths:
-#                        hysq = raw_input("Is this a hysteresis experiment? [1]/0")
-#                        if hysq == "" or hysq == "1":
-#                            meths.append("LP-HYS")
-#                        else:
-#                            metha = raw_input("Enter the lab protocol code "
-#                                              "that best describes this experiment ")
-#                            meths.append(metha)
-#                methcode = ""
-#                for meth in meths:
-#                    methcode = methcode+meth.strip()+":"
-#                rec["magic_method_codes"] = methcode[:-1]  # assign them back
-
-#            # done with first pass, collect and assign provisional method codes
-#            if "measurement_description" not in rec.keys():
-#                rec["measurement_description"] = ""
-#            rec["er_citation_names"] = "This study"
-#            SpecTmps.append(rec)
-
-#    # ready for second pass through, step through specimens,
-#    # check whether ptrm, ptrm tail checks, or AARM, etc.
-#    for spec in sids:
-#        MD, pTRM, IZ, ZI = 0, 0, 0, 0  # these are flags for the lab protocol codes
-#        expcodes = ""
-#        NewSpecs, SpecMeths = [], []
-#        experiment_name, measnum = "", 1
-#        if IRM3D == 1:
-#            experiment_name = "LP-IRM-3D"
-#        if ATRM == 1:
-#            experiment_name = "LP-AN-TRM"
-#        if CR == 1:
-#            experiment_name = "LP-CR"
-#        NewSpecs = get_dictitem(SpecTmps, 'er_specimen_name', spec, 'T')
-#        # first look for replicate measurements
-#        Ninit = len(NewSpecs)
-#        if noave != 1:
-#            # averages replicate measurements, returns treatment keys that are being used
-#            vdata, treatkeys = vspec_magic(NewSpecs)
-#            if len(vdata) != len(NewSpecs):
-#                print(spec, 'started with ', Ninit, ' ending with ', len(vdata))
-#                NewSpecs = vdata
-#                print("Averaged replicate measurements")
-
-#        # now look through this specimen's records - try to figure out what experiment it is
-#        if len(NewSpecs) > 1:  # more than one meas for this spec - part of an unknown experiment
-#            SpecMeths = get_list(NewSpecs, 'magic_method_codes').split(":")
-#            # TRM steps, could be TRM acquisition, Shaw or a Thellier experiment or TDS experiment
-#            if "LT-T-I" in SpecMeths and experiment_name == "":
-#                # collect all the infield steps and look for changes in dc field vector
-#                Steps, TI = [], 1
-#                for rec in NewSpecs:
-#                    methods = get_list(
-#                        NewSpecs, 'magic_method_codes').split(":")
-#                    if "LT-T-I" in methods:
-#                        Steps.append(rec)  # get all infield steps together
-#                rec_bak = Steps[0]
-#                if "treatment_dc_field_phi" in rec_bak.keys() and \
-#                        "treatment_dc_field_theta" in rec_bak.keys():
-#                    # at least there is field orientation info
-#                    if rec_bak["treatment_dc_field_phi"] != "" and \
-#                            rec_bak["treatment_dc_field_theta"] != "":
-#                        phi0 = rec_bak["treatment_dc_field_phi"]
-#                        theta0 = rec_bak["treatment_dc_field_theta"]
-#                        for k in range(1, len(Steps)):
-#                            rec = Steps[k]
-#                            phi = rec["treatment_dc_field_phi"]
-#                            theta = rec["treatment_dc_field_theta"]
-#                            if phi != phi0 or theta != theta0:
-#                                # if direction changes, is some sort of anisotropy experiment
-#                                ANIS = 1
-#                if "LT-AF-I" in SpecMeths and "LT-AF-Z" in SpecMeths:  # must be Shaw :(
-#                    experiment_name = "LP-PI-TRM:LP-PI-ALT-AFARM"
-#                elif TRM == 1:
-#                    experiment_name = "LP-TRM"
-#            else:
-#                TI = 0  # no infield steps at all
-#            if "LT-T-Z" in SpecMeths and experiment_name == "":  # thermal demag steps
-#                if TI == 0:
-#                    experiment_name = "LP-DIR-T"  # just ordinary thermal demag
-#                # heart pounding - could be some kind of TRM
-#                # normalized paleointensity or LP-TRM-TD experiment
-#                elif TRM != 1:
-#                    Temps = []
-#                    # check through the infield steps -
-#                    # if all at same temperature, then must be a demag of a total TRM with checks
-#                    for step in Steps:
-#                        if step['treatment_temp'] not in Temps:
-#                            Temps.append(step['treatment_temp'])
-#                    if len(Temps) > 1:
-#                        experiment_name = "LP-PI-TRM"  # paleointensity normalized by TRM
-#                    else:
-#                        # thermal demag of a lab TRM (could be part of a LP-PI-TDS experiment)
-#                        experiment_name = "LP-TRM-TD"
-#                TZ = 1
-#            else:
-#                TZ = 0  # no zero field steps at all
-#            if "LT-AF-I" in SpecMeths:  # ARM steps
-#                Steps = []
-#                for rec in NewSpecs:
-#                    tmp = rec["magic_method_codes"].split(":")
-#                    methods = []
-#                    for meth in tmp:
-#                        methods.append(meth.strip())
-#                    if "LT-AF-I" in methods:
-#                        Steps.append(rec)  # get all infield steps together
-#                rec_bak = Steps[0]
-#                if "treatment_dc_field_phi" in rec_bak.keys() and \
-#                        "treatment_dc_field_theta" in rec_bak.keys():
-#                    # at least there is field orientation info
-#                    if rec_bak["treatment_dc_field_phi"] != "" and \
-#                            rec_bak["treatment_dc_field_theta"] != "":
-#                        phi0 = rec_bak["treatment_dc_field_phi"]
-#                        theta0 = rec_bak["treatment_dc_field_theta"]
-#                        ANIS = 0
-#                        for k in range(1, len(Steps)):
-#                            rec = Steps[k]
-#                            phi = rec["treatment_dc_field_phi"]
-#                            theta = rec["treatment_dc_field_theta"]
-#                            if phi != phi0 or theta != theta0:
-#                                # if direction changes, is some sort of anisotropy experiment
-#                                ANIS = 1
-#                        if ANIS == 1:
-#                            experiment_name = "LP-AN-ARM"
-#                if experiment_name == "":  # not anisotropy of ARM - acquisition?
-#                        field0 = rec_bak["treatment_dc_field"]
-#                        ARM = 0
-#                        for k in range(1, len(Steps)):
-#                            rec = Steps[k]
-#                            field = rec["treatment_dc_field"]
-#                            if field != field0:
-#                                ARM = 1
-#                        if ARM == 1:
-#                            experiment_name = "LP-ARM"
-#                AFI = 1
-#            else:
-#                AFI = 0  # no ARM steps at all
-#            if "LT-AF-Z" in SpecMeths and experiment_name == "":  # AF demag steps
-#                if AFI == 0:
-#                    experiment_name = "LP-DIR-AF"  # just ordinary AF demag
-#                else:  # heart pounding - a pseudothellier?
-#                    experiment_name = "LP-PI-ARM"
-#                AFZ = 1
-#            else:
-#                AFZ = 0  # no AF demag at all
-#            if "LT-IRM" in SpecMeths:  # IRM
-#                Steps = []
-#                for rec in NewSpecs:
-#                    tmp = rec["magic_method_codes"].split(":")
-#                    methods = []
-#                    for meth in tmp:
-#                        methods.append(meth.strip())
-#                    if "LT-IRM" in methods:
-#                        Steps.append(rec)  # get all infield steps together
-#                rec_bak = Steps[0]
-#                if "treatment_dc_field_phi" in rec_bak.keys() and \
-#                        "treatment_dc_field_theta" in rec_bak.keys():
-#                    # at least there is field orientation info
-#                    if rec_bak["treatment_dc_field_phi"] != "" and \
-#                            rec_bak["treatment_dc_field_theta"] != "":
-#                        phi0 = rec_bak["treatment_dc_field_phi"]
-#                        theta0 = rec_bak["treatment_dc_field_theta"]
-#                        ANIS = 0
-#                        for k in range(1, len(Steps)):
-#                            rec = Steps[k]
-#                            phi = rec["treatment_dc_field_phi"]
-#                            theta = rec["treatment_dc_field_theta"]
-#                            if phi != phi0 or theta != theta0:
-#                                # if direction changes, is some sort of anisotropy experiment
-#                                ANIS = 1
-#                        if ANIS == 1:
-#                            experiment_name = "LP-AN-IRM"
-#                if experiment_name == "":  # not anisotropy of IRM - acquisition?
-#                    field0 = rec_bak["treatment_dc_field"]
-#                    IRM = 0
-#                    for k in range(1, len(Steps)):
-#                        rec = Steps[k]
-#                        field = rec["treatment_dc_field"]
-#                        if field != field0:
-#                            IRM = 1
-#                    if IRM == 1:
-#                        experiment_name = "LP-IRM"
-#                IRM = 1
-#            else:
-#                IRM = 0  # no IRM at all
-#            if "LP-X" in SpecMeths:  # susceptibility run
-#                Steps = get_dictitem(
-#                    NewSpecs, 'magic_method_codes', 'LT-X', 'has')
-#                if len(Steps) > 0:
-#                    rec_bak = Steps[0]
-#                    if "treatment_dc_field_phi" in rec_bak.keys() and \
-#                            "treatment_dc_field_theta" in rec_bak.keys():
-#                        # at least there is field orientation info
-#                        if rec_bak["treatment_dc_field_phi"] != "" and \
-#                                rec_bak["treatment_dc_field_theta"] != "":
-#                            phi0 = rec_bak["treatment_dc_field_phi"]
-#                            theta0 = rec_bak["treatment_dc_field_theta"]
-#                            ANIS = 0
-#                            for k in range(1, len(Steps)):
-#                                rec = Steps[k]
-#                                phi = rec["treatment_dc_field_phi"]
-#                                theta = rec["treatment_dc_field_theta"]
-#                                if phi != phi0 or theta != theta0:
-#                                    # if direction changes, is some sort of anisotropy experiment
-#                                    ANIS = 1
-#                            if ANIS == 1:
-#                                experiment_name = "LP-AN-MS"
-#            else:
-#                CHI = 0  # no susceptibility at all
-
-#            # now need to deal with special thellier experiment problems - first
-#            # clear up pTRM checks and  tail checks
-#            if experiment_name == "LP-PI-TRM":  # is some sort of thellier experiment
-#                rec_bak = NewSpecs[0]
-#                tmp = rec_bak["magic_method_codes"].split(":")
-#                methbak = []
-#                for meth in tmp:
-#                    methbak.append(meth.strip())  # previous steps method codes
-#                for k in range(1, len(NewSpecs)):
-#                    rec = NewSpecs[k]
-#                    tmp = rec["magic_method_codes"].split(":")
-#                    meths = []
-#                    for meth in tmp:
-#                        meths.append(meth.strip())  # get this guys method codes
-
-#                    # check if this is a pTRM check
-#                    if (float(rec["treatment_temp"]) <
-#                            float(rec_bak["treatment_temp"])):  # went backward
-#                        if "LT-T-I" in meths and \
-#                                "LT-T-Z" in methbak:  # must be a pTRM check after first z
-
-#                            # replace LT-T-I method code with LT-PTRM-I
-#                            methcodes = ""
-#                            for meth in meths:
-#                                if meth != "LT-T-I":
-#                                    methcode = methcode+meth.strip()+":"
-#                            methcodes = methcodes+"LT-PTRM-I"
-#                            meths = methcodes.split(":")
-#                            pTRM = 1
-#                        # must be pTRM check after first I
-#                        elif "LT-T-Z" in meths and "LT-T-I" in methbak:
-#                            # replace LT-T-Z method code with LT-PTRM-Z
-#                            methcodes = ""
-#                            for meth in meths:
-#                                if meth != "LT-T-Z":
-#                                    methcode = methcode+meth+":"
-#                            methcodes = methcodes+"LT-PTRM-Z"
-#                            meths = methcodes.split(":")
-#                            pTRM = 1
-#                    methcodes = ""
-#                    for meth in meths:
-#                        methcodes = methcodes+meth.strip()+":"
-#                    # attach new method code
-#                    rec["magic_method_codes"] = methcodes[:-1]
-#                    rec_bak = rec  # next previous record
-#                    tmp = rec_bak["magic_method_codes"].split(":")
-#                    methbak = []
-#                    for meth in tmp:
-#                        # previous steps method codes
-#                        methbak.append(meth.strip())
-
-#                # done with assigning pTRM checks.  data should be "fixed" in
-#                # NewSpecs now let's find out which steps are infield zerofield
-#                # (IZ) and which are zerofield infield (ZI)
-#                rec_bak = NewSpecs[0]
-#                tmp = rec_bak["magic_method_codes"].split(":")
-#                methbak = []
-#                for meth in tmp:
-#                    methbak.append(meth.strip())  # previous steps method codes
-#                if "LT-NO" not in methbak:  # first measurement is not NRM
-#                    if "LT-T-I" in methbak:
-#                        IZorZI = "LP-PI-TRM-IZ"  # first pair is IZ
-#                    if "LT-T-Z" in methbak:
-#                        IZorZI = "LP-PI-TRM-ZI"  # first pair is ZI
-#                    if IZorZI not in methbak:
-#                        methbak.append(IZorZI)
-#                    methcode = ""
-#                    for meth in methbak:
-#                        methcode = methcode+meth+":"
-#                    # fix first heating step when no NRM
-#                    NewSpecs[0]["magic_method_codes"] = methcode[:-1]
-#                else:
-#                    IZorZI = ""  # first measurement is NRM and not one of a pair
-#                for k in range(1, len(NewSpecs)):  # hunt through measurements again
-#                    rec = NewSpecs[k]
-#                    tmp = rec["magic_method_codes"].split(":")
-#                    meths = []
-#                    for meth in tmp:
-#                        meths.append(meth.strip())  # get this guys method codes
-
-#                    # check if this start a new temperature step of a infield/zerofield pair
-#                    if (float(rec["treatment_temp"]) >
-#                            float(rec_bak["treatment_temp"])) and \
-#                            "LT-PTRM-I" not in methbak:  # new pair?
-#                        if "LT-T-I" in meths:  # infield of this pair
-#                                IZorZI = "LP-PI-TRM-IZ"
-#                                IZ = 1  # at least one IZ pair
-#                        elif "LT-T-Z" in meths:  # zerofield
-#                                IZorZI = "LP-PI-TRM-ZI"
-#                                ZI = 1  # at least one ZI pair
-#                    # new pair after out of sequence PTRM check?
-#                    elif (float(rec["treatment_temp"]) >
-#                          float(rec_bak["treatment_temp"])) and \
-#                            "LT-PTRM-I" in methbak and IZorZI != "LP-PI-TRM-ZI":
-#                        if "LT-T-I" in meths:  # infield of this pair
-#                                IZorZI = "LP-PI-TRM-IZ"
-#                                IZ = 1  # at least one IZ pair
-#                        elif "LT-T-Z" in meths:  # zerofield
-#                                IZorZI = "LP-PI-TRM-ZI"
-#                                ZI = 1  # at least one ZI pair
-#                    # stayed same temp
-#                    if float(rec["treatment_temp"]) == float(rec_bak["treatment_temp"]):
-#                        if "LT-T-Z" in meths and \
-#                            "LT-T-I" in methbak and \
-#                                IZorZI == "LP-PI-TRM-ZI":  # must be a tail check
-#                            # replace LT-T-Z method code with LT-PTRM-MD
-#                            methcodes = ""
-#                            for meth in meths:
-#                                if meth != "LT-T-Z":
-#                                    methcode = methcode+meth+":"
-#                            methcodes = methcodes+"LT-PTRM-MD"
-#                            meths = methcodes.split(":")
-#                            MD = 1
-#                    # fix method codes
-#                    if "LT-PTRM-I" not in meths and \
-#                        "LT-PTRM-MD" not in meths and \
-#                            IZorZI not in meths:
-#                        meths.append(IZorZI)
-#                    newmeths = []
-#                    for meth in meths:
-#                        if meth not in newmeths:
-#                            newmeths.append(meth)  # try to get uniq set
-#                    methcode = ""
-#                    for meth in newmeths:
-#                        methcode = methcode+meth+":"
-#                    rec["magic_method_codes"] = methcode[:-1]
-#                    rec_bak = rec  # moving on to next record, making current one the backup
-#                    # get last specimen's method codes in a list
-#                    methbak = rec_bak["magic_method_codes"].split(":")
-
-#                # done with this specimen's records, now  check if any pTRM checks or MD checks
-#                if pTRM == 1:
-#                    experiment_name = experiment_name+":LP-PI-ALT-PTRM"
-#                if MD == 1:
-#                    experiment_name = experiment_name+":LP-PI-BT-MD"
-#                if IZ == 1 and ZI == 1:
-#                    experiment_name = experiment_name+":LP-PI-BT-IZZI"
-#                if IZ == 1 and ZI == 0:
-#                    experiment_name = experiment_name+":LP-PI-IZ"  # Aitken method
-#                if IZ == 0 and ZI == 1:
-#                    experiment_name = experiment_name+":LP-PI-ZI"  # Coe method
-#                IZ, ZI, pTRM, MD = 0, 0, 0, 0  # reset these for next specimen
-
-#                # fix the experiment name for all recs for this specimen and
-#                # save in SpecOuts
-#                for rec in NewSpecs:
-#                    # assign an experiment name to all specimen measurements from this specimen
-#                    if experiment_name != "":
-#                        rec["magic_method_codes"] = rec["magic_method_codes"] + \
-#                            ":"+experiment_name
-#                    rec["magic_experiment_name"] = spec+":"+experiment_name
-#                    rec['measurement_number'] = '%i' % (
-#                        measnum)  # assign measurement numbers
-#                    measnum += 1
-#                    SpecOuts.append(rec)
-#            elif experiment_name == "LP-PI-TRM:LP-PI-ALT-AFARM":  # is a Shaw experiment!
-#                ARM, TRM = 0, 0
-#                # fix the experiment name for all recs for this specimen and
-#                # save in SpecOuts
-#                for rec in NewSpecs:
-#                    # assign an experiment name to all specimen measurements
-#                    # from this specimen
-#                    # make the second ARM in Shaw experiments LT-AF-I-2, stick
-#                    # in the AF of ARM and TRM codes
-#                    meths = rec["magic_method_codes"].split(":")
-#                    if ARM == 1:
-#                        if "LT-AF-I" in meths:
-#                            del meths[meths.index("LT-AF-I")]
-#                            meths.append("LT-AF-I-2")
-#                            ARM = 2
-#                        if "LT-AF-Z" in meths and TRM == 0:
-#                            meths.append("LP-ARM-AFD")
-#                    if TRM == 1 and ARM == 1:
-#                        if "LT-AF-Z" in meths:
-#                            meths.append("LP-TRM-AFD")
-#                    if ARM == 2:
-#                        if "LT-AF-Z" in meths:
-#                            meths.append("LP-ARM2-AFD")
-#                    newcode = ""
-#                    for meth in meths:
-#                        newcode = newcode+meth+":"
-#                    rec["magic_method_codes"] = newcode[:-1]
-#                    if "LT-AF-I" in meths:
-#                        ARM = 1
-#                    if "LT-T-I" in meths:
-#                        TRM = 1
-#                    rec["magic_method_codes"] = rec["magic_method_codes"] + \
-#                        ":"+experiment_name
-#                    rec["magic_experiment_name"] = spec+":"+experiment_name
-#                    rec['measurement_number'] = '%i' % (
-#                        measnum)  # assign measurement numbers
-#                    measnum += 1
-#                    SpecOuts.append(rec)
-#            else:  # not a Thellier-Thellier  or a Shaw experiemnt
-#                for rec in NewSpecs:
-#                    if experiment_name == "":
-#                        rec["magic_method_codes"] = "LT-NO"
-#                        rec["magic_experiment_name"] = spec+":LT-NO"
-#                        rec['measurement_number'] = '%i' % (
-#                            measnum)  # assign measurement numbers
-#                        measnum += 1
-#                    else:
-#                        if experiment_name not in rec['magic_method_codes']:
-#                            rec["magic_method_codes"] = rec["magic_method_codes"] + \
-#                                ":"+experiment_name
-#                            rec["magic_method_codes"] = rec["magic_method_codes"].strip(
-#                                ':')
-#                        rec['measurement_number'] = '%i' % (
-#                            measnum)  # assign measurement numbers
-#                        measnum += 1
-#                        rec["magic_experiment_name"] = spec+":"+experiment_name
-#                    rec["magic_software_packages"] = version_num
-#                    SpecOuts.append(rec)
-#        else:
-#            NewSpecs[0]["magic_experiment_name"] = spec+":" + \
-#                NewSpecs[0]['magic_method_codes'].split(':')[0]
-#            NewSpecs[0]["magic_software_packages"] = version_num
-#            # just copy over the single record as is
-#            SpecOuts.append(NewSpecs[0])
-#    return SpecOuts
 
 
 def cart2dir(cart):
@@ -945,118 +414,219 @@ def to_year_fraction(date):
     return date.year + fraction
 
 
-# from https://stackoverflow.com/a/3173331
-def update_progress(progress):
-    print('\r[{0}] {1}%'.format('#'*(progress/10), progress))
 
 
-class logclr:
+################################################################################
+#                            Command Line Interface                            #
+################################################################################
+
+################
+#  Docstrings  #
+################
+
+def get_prog_desc():
+    # define docstrings to print with -h or --help options
+    prog_desc = textwrap.dedent("""\
+            Using a formatted CSV, creates and writes a .sam header file and a
+            set of sample files. The program can be run on multiple files
+            provided either as an explicit sequence of names or as a glob
+            pattern (use --help to view examples).
+            """)
+    return prog_desc
+
+
+def get_prog_epilog():
+    prog_epilog = textwrap.dedent("""\
+
+    Examples
+    --------
+    Create header and sample files from a single .csv for site `P1` containing
+    samples `1a` through `6a`:
+
+        $ mk_sam_file.py P1.csv
+
+        Output ('.' = current directory):
+            ./P1.csv(new) ./P1.sam  ./P1.inp  ./P1-1a  ./P1-2a
+            ./P1-3a       ./P1-4a   ./P1-5a   ./P1-6a
+
+    Same as above, but write files to another directory:
+
+        $ mk_sam_file.py P1.csv --dirout P1_files
+
+        Output:
+            ./P1_files/P1.csv(new)  ./P1_files/P1.sam  ./P1_files/P1.inp
+            ./P1_files/P1-1         ./P1_files/P1-2    [...]
+
+    Run script on multiple .csv files:
+
+        $ mk_sam_file.py P1.csv P2.csv P3.csv
+        --OR--
+        $ mk_sam_file.py P[1-3].csv
+
+        Output:
+            ./P1.csv(new)  ./P1.sam  ./P1.inp  ./P1-1a  ./P1-2a  [...]
+            ./P2.csv(new)  ./P2.sam  ./P2.inp  ./P2-1a  ./P2-2a  [...]
+            ./P3.csv(new)  ./P3.sam  ./P3.inp  ./P3-1a  ./P3-2a  [...]
+
+    Other options --all and --auto-dirs:
+
+        $ mk_sam_file.py --all --auto-dirs
+
+        Output:
+            ./P1/P1.csv(new)  ./P1/P1.sam  ./P1/P1.inp  ./P1/P1-1a  [...]
+            ./P2/P2.csv(new)  ./P2/P2.sam  ./P2/P2.inp  ./P2/P2-1a  [...]
+            ...
+            ./Z15/Z15.csv(new)  ./Z15/Z15.sam  ./Z15/Z15.inp  ./Z15/Z15.1a  [...]
+            ./CF10/CF10.csv(new)  ./CF10/CF10.sam  ./CF10/CF10.inp  [...]
+            etc.
+
+    """)
+    return prog_epilog
+
+
+##################################
+#  Command line argument parser  #
+##################################
+
+def get_parser(with_examples=False):
+    # get docstrings
+    prog_desc = get_prog_desc()
+    if with_examples:
+        prog_epilog = get_prog_epilog()
+    else:
+        prog_epilog = None
+    # set up argument parser for command line use
+    parser = argparse.ArgumentParser(prog="mk_sam_file.py", add_help=False,
+                                     description=prog_desc,
+                                     epilog=prog_epilog,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    config_main = parser.add_argument_group(title="Positional arguments")
+    config_main.add_argument('csv_file', nargs='*',
+                             help=""".csv file(s). Required unless the --all
+                             option is given""")
+    config_opts = parser.add_argument_group(title="Optional arguments")
+    config_opts.add_argument('-h', '--help', action='help',
+                             help="""Show this help message and exit. Use long
+                             form (--help) to include examples.""")
+    config_opts.add_argument('-a', '--all', action='store_true',
+                             help="""Create .sam header files for all CSV files
+                             in the current directory.""")
+    config_opts.add_argument('-d', '--dirout', dest='output_directory', metavar='',
+                             help="""Output directory. If path does not exist,
+                             it will be created. To automatically configure
+                             output directories (based on csv name), use
+                             --auto-dirs.""")
+    config_opts.add_argument('-ad', '--auto-dirs', action='store_true',
+                             help="""Write contents to a directory with same
+                             name as the csv file.""")
+    # CLI options
+    cli_opts = parser.add_argument_group(title="Additional options")
+    cli_opts.add_argument('-y', '--yes', action='store_true',
+                          help="""Do not pause on error notifications.""")
+    cli_opts.add_argument('-q', '--quiet', dest='quiet', action='store_true',
+                          help="""Show minimal output and write the full output
+                          to log file (helpful with a large number of files).
+                          Default display method if number of files > 10, unless
+                          --verbose option is used.""")
+    cli_opts.add_argument('-v', '--verbose', dest='verbose', action='store_true',
+                          help="""Display long output (default if number of
+                          files <= 10).""")
+    cli_opts.add_argument('--no-color', dest='color', action='store_false',
+                          help="""Disable color output (enabled by default).""")
+    return parser
+
+
+#######################################################
+#  CLI display (controls for color, verbosity, etc.)  #
+#######################################################
+
+class tclr:
     """define colors for output to terminal"""
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
+    WARN = '\033[93m'
     FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
 
+    def disable(self):
+        self.HEADER = ''
+        self.OKBLUE = ''
+        self.OKGREEN = ''
+        self.WARN = ''
+        self.FAIL = ''
+        self.ENDC = ''
+        self.BOLD = ''
+
 
 class Logger(object):
     """Logger
-    Redirects all standard output and any unhandled exceptions to file
-    'setup.log'. It will also return output to the terminal by default, unless
-    the --quiet option was specified during setup.
+    If quiet==True, replace long output with progress bar. A summary of warnings
+    and all exceptions will still be shown. Otherwise, Logger simply relays all
+    print statements back to stdout.
     """
-
-    def __init__(self, show=None, quiet=False, clr_output=True):
+    def __init__(self, quiet=False):
         self.quiet = quiet
-        self.clr_output = clr_output
         self.terminal = sys.stdout
-        self.quiet_count = 0
-        self.log = open("setup.log", "w+")
-        self.log.write('\n{:-^80}\n\n'.format('  Started setup at {}  '.format(asctime())))
-        self.msg_to_term = True  # send output at start, even if --quiet
+        self.log = open("mk_sam.log", "w+")
+        self.log.write('\n{:-^70}\n\n'.format('  Started at {}  '.format(time.asctime())))
 
     def write(self, message):
         """main write method for redirection of sys.stdout"""
-        # first classify the message content to determine whether it should be
-        # written to the console in addition to being logged
-        if self.msg_to_term or "-W-" in str(message) or "-E-" in str(message):
-            # should always evaluate True if quiet==False; if quiet==True,
-            # should only evaluate True when printing initial messages during
-            # file copy and during warnings/errors
-            self.msg_to_term = self.msg_type(message)
-        self.log.write(message)
-
-    def msg_type(self, message):
-        """classify the message and color output to console"""
-        msg_lvl = 0
-        # if self.clr_output:
-        if '---' in str(message):
-            self.terminal.write(logclr.BOLD)
-            msg_lvl = 1
-        elif '-E-' in str(message):
-            self.terminal.write(logclr.FAIL)
-            msg_lvl = 2
-        elif '-W-' in str(message):
-            self.terminal.write(logclr.WARNING)
-            msg_lvl = 3
-        elif '-I-' in str(message):
-            self.terminal.write(logclr.OKGREEN)
-            # filter out debug_inp messages if quiet
-            if any([x in str(message) for x in ('Running', 'Writing')]):
-                msg_lvl = 5
-            else:
-                msg_lvl = 4
-        elif str(message).startswith(' | '):
-            self.terminal.write(logclr.OKBLUE)
-            msg_lvl = 6
-        if self.quiet:
-            if msg_lvl < 5:
-                self.terminal.write(message)
-            else:
-                return False
-        else:
+        if not self.quiet:
             self.terminal.write(message)
-        self.terminal.write(logclr.ENDC)
-        return True
+        else:
+            # if applicable, capture and show the final warning message and
+            # count for large declination difference
+            if ('WARNING: ' in str(message) and
+                    'WARNING: declinations' not in str(message)):
+                # self.log.write("\033[2K\r")
+                message = message.replace('\033[93m', '')
+                message = message.replace('\033[0m', '')
+                self.log.write(message)
+                self.log.write("\n")
+
+    def write_progress(self, n, num, colors = None):
+        i = int((n/num)*100)
+        width = int((i + 1) / 2)
+        bar = "[" + "#" * width + " " * (50 - width) + "]"
+        count = f"( {n} / {num} )"
+        if n == num and colors is not None:
+            count = colors.OKGREEN + f"( {n} / {num} )" + colors.ENDC
+        self.terminal.write("\033[1000D" + bar + " "*4 + count)
+        self.flush()
+
+    def override_quiet(self):
+        """override quiet option for important messages (e.g. errors)"""
+        # clear line and carriage return
+        self.terminal.write("\033[2K\r")
+        self.quiet = False
+
+    def silence(self):
+        """restore quiet after override_quiet()"""
+        # start on new line
+        self.terminal.write("\n")
+        self.quiet = True
 
     def flush(self):
         self.terminal.flush()
 
 
-
 class loggercontext(ContextDecorator):
+    """loggercontext
+    A context manager for Logger (simplifies the implementation in the code to a
+    `with` statement). This also ensures that sys.stdout is returned to its
+    original state.
+    """
     def __init__(self, quiet=False):
         self.quiet = quiet
 
-    def __enter__(self, show=None):
-        start_logger(show=self.show, quiet=self.quiet)
-        return self
+    def __enter__(self):
+        sys.stdout = Logger(quiet=self.quiet)
+        return sys.stdout
 
     def __exit__(self, *exc):
-        stop_logger(*exc)
+        sys.stdout.log.close()
+        sys.stdout = sys.__stdout__
         return False
-
-
-def start_logger(show=None, quiet=False):
-    sys.stdout = Logger(show=show, quiet=quiet)
-
-
-def stop_logger(*exc):
-    if not any(exc):
-        sys.stdout.log.write(
-            '{:-^80}\n'.format('  Setup finished successfully at {}  '.format(asctime())))
-        finished = True
-    elif exc[0] is SystemExit:
-        finished = False
-        pass
-    else:
-        sys.stdout.write('-E- Setup failed! Aborting...\n')
-        sys.stdout.log.write('-E- The following error occurred:\n' +
-                             ''.join(traceback.format_exception(*exc)))
-        finished = False
-    sys.stdout.log.close()
-    sys.stdout = sys.__stdout__
-    if finished:
-        print("Setup finished! Full record written to setup.log")

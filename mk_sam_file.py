@@ -2,7 +2,7 @@
 
 import os
 import sys
-import argparse
+# import argparse
 import textwrap
 import re
 import math
@@ -12,6 +12,10 @@ from mk_sam_utilities import *
 from datetime import datetime as dt
 from functools import reduce
 
+# disable colors by default
+# (refer to color class tclr in mk_sam_utilities)
+clr = tclr()
+clr.disable()
 
 def main(csv_file, output_directory):
     """
@@ -74,7 +78,7 @@ def main(csv_file, output_directory):
     #                         Find Calculated Values                          #
     ###########################################################################
 
-    print('---------------------LOCAL MAGNETIC DECLINATION-----------------------')
+    print(clr.BOLD+'{:-^70}'.format('LOCAL MAGNETIC DECLINATION')+clr.ENDC+'\n')
     # calculate sun_core_strike for all samples
     for sample in samples:
         if (not sdf[sample].isnull().any()):
@@ -150,7 +154,7 @@ def main(csv_file, output_directory):
             print("    {:+.2f}".format(df[sample]['calculated_mag_dec']))
             if abs(float(df[sample]['IGRF_local_dec']) -
                    float(df[sample]['calculated_mag_dec'])) > 5:
-                print("\033[93m"+"WARNING: declinations differ by >5 degrees"+"\033[0m")
+                print(clr.WARN+"WARNING: declinations differ by >5 degrees"+clr.ENDC)
                 warning_count += 1
         print('')
     if warning_count > 0:
@@ -159,20 +163,21 @@ def main(csv_file, output_directory):
                   magnetic declination values that differ by more than 5 degrees
                   from IGRF. Be sure to check values in {file_name} before
                   proceeding.""")
-        print("\033[93m"+"\n".join(textwrap.wrap(warnct_report, width=70,
-                                                 initial_indent='WARNING: ',
-                                                 subsequent_indent='         '))+"\033[0m",
+        print(clr.WARN+"\n".join(textwrap.wrap(warnct_report, width=70,
+                                               initial_indent='WARNING: ',
+                                               subsequent_indent='         '))
+              + clr.ENDC,
               end='\n\n')
     print('Site averages:')
-    print("Average of local IGRF declination is: "
+    print('    '+"Average of local IGRF declination is: "
           "{:+.4f}".format(df.transpose()['IGRF_local_dec'].mean()))
     # read mag decs as numeric; values of 'insufficient data' become NaN
     mag_decs = pd.to_numeric(df.transpose().calculated_mag_dec, errors='coerce')
     if pd.notna(mag_decs.mean()):  # skip this if all values are NaN
-        print("Average of calculated local declination: "
+        print('    '+"Average of calculated local declination: "
               "{:+.4f}  (N={:d})".format(mag_decs.mean(), mag_decs.count()))
 
-    print('\n---------------------OUTPUT-----------------------')
+    print('\n'+clr.BOLD+'{:-^70}'.format('OUTPUT')+clr.ENDC)
 
     ###########################################################################
     #                         Create .SAM Header File                         #
@@ -477,92 +482,27 @@ def generate_inp_file(od, df, hdf):
     inpf.close()
 
 
+# from https://stackoverflow.com/a/3173331
+def update_progress(out, progress):
+    out.write('\r[{0}] {1}%'.format('#'*(progress/10), progress))
+
+
 if __name__ == "__main__":
     # Universal newlines are more standardized now, so it might be safe to
     # remove the fix_line_breaks functions or move it to utilities.
     # fix_line_breaks()
-    prog_desc = textwrap.dedent("""\
-            Using a formatted CSV, creates and writes a .sam header file and a
-            set of sample files. The program can be run on multiple files
-            provided either as an explicit sequence of names or as a glob
-            pattern (use --help to view examples).
-            """)
 
-    prog_epilog = textwrap.dedent("""\
-
-    Examples
-    --------
-    Create header and sample files from a single .csv for site `P1` containing
-    samples `1a` through `6a`:
-
-        $ mk_sam_file.py P1.csv
-
-        Output ('.' = current directory):
-            ./P1.csv(new) ./P1.sam  ./P1.inp  ./P1-1a  ./P1-2a
-            ./P1-3a       ./P1-4a   ./P1-5a   ./P1-6a
-
-    Same as above, but write files to another directory:
-
-        $ mk_sam_file.py P1.csv --dirout P1_files
-
-        Output:
-            ./P1_files/P1.csv(new)  ./P1_files/P1.sam  ./P1_files/P1.inp
-            ./P1_files/P1-1         ./P1_files/P1-2    [...]
-
-    Run script on multiple .csv files:
-
-        $ mk_sam_file.py P1.csv P2.csv P3.csv
-        --OR--
-        $ mk_sam_file.py P[1-3].csv
-
-        Output:
-            ./P1.csv(new)  ./P1.sam  ./P1.inp  ./P1-1a  ./P1-2a  [...]
-            ./P2.csv(new)  ./P2.sam  ./P2.inp  ./P2-1a  ./P2-2a  [...]
-            ./P3.csv(new)  ./P3.sam  ./P3.inp  ./P3-1a  ./P3-2a  [...]
-
-    Other options --all and --auto-dirs:
-
-        $ mk_sam_file.py --all --auto-dirs
-
-        Output:
-            ./P1/P1.csv(new)  ./P1/P1.sam  ./P1/P1.inp  ./P1/P1-1a  [...]
-            ./P2/P2.csv(new)  ./P2/P2.sam  ./P2/P2.inp  ./P2/P2-1a  [...]
-            ...
-            ./Z15/Z15.csv(new)  ./Z15/Z15.sam  ./Z15/Z15.inp  ./Z15/Z15.1a  [...]
-            ./CF10/CF10.csv(new)  ./CF10/CF10.sam  ./CF10/CF10.inp  [...]
-            etc.
-
-    """)
     # do not print examples unless long --help is given
     if '--help' not in sys.argv:
-        prog_epilog = None
-    parser = argparse.ArgumentParser(prog="mk_sam_file.py", add_help=False,
-                                     description=prog_desc,
-                                     epilog=prog_epilog,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('csv_file', nargs='*',
-                        help=""".csv file(s). Required unless the --all option
-                        is given""")
-    config_opts = parser.add_argument_group(title="additional options")
-    config_opts.add_argument('-h', '--help', action='help',
-                             help="""Show this help message and exit. Use long
-                             form (--help) to include examples.""")
-    config_opts.add_argument('-a', '--all', action='store_true',
-                             help="""Create .sam header files for all CSV files
-                             in the current directory.""")
-    # config_out = parser.add_mutually_exclusive_group()
-    config_opts.add_argument('--dirout', dest='output_directory', metavar='',
-                             help="""Output directory. If path does not exist,
-                             it will be created. To automatically configure
-                             output directories (based on csv name), use
-                             --auto-dirs.""")
-    config_opts.add_argument('--auto-dirs', action='store_true',
-                             help="""Write contents to a directory with same
-                             name as the csv file.""")
+        show_examples = False
+    # get argument parser
+    parser = get_parser(with_examples = show_examples)
+    # parse arguments from command line
     args = vars(parser.parse_args())
     csv_file_list = args.pop('csv_file')
     num_files = len(csv_file_list)
-
+    if args["color"]:
+        clr = tclr()
     # if no 'read' option specified...
     if num_files == 0 and not args['all']:
         parser.error("Nothing to read.\nYou must provide file name(s) unless "
@@ -585,32 +525,47 @@ if __name__ == "__main__":
         def output_dir(x): return args["output_directory"]
     # csv list may have changed; do a recount
     num_files = len(csv_file_list)
+    if (num_files > 10 or args['quiet']) and not args['verbose']:
+        silenced = True
+    else:
+        silenced = False
 
     # now run all files through the main program
-    for i, fname in enumerate(csv_file_list, 1):
-        fcount = f"({i} / {num_files})"
-        startmsg = f"Reading in file - {fname}"
-        print(f"{startmsg:<35}{fcount:>35}\n")
-        try:
-            main(fname, output_dir(fname))
-        except Exception:
-            ex_name = str(sys.exc_info()[0].__name__)
-            width = 80
-            print("\033[93m"+f"Exception occurred while running on file {fname}"+"\033[0m",
-                  end='\n\n')
-            print("\033[91m" +
-                  "\n".join(textwrap.wrap(str(sys.exc_info()[1]),
-                                          width=width - len(ex_name+": "),
-                                          initial_indent=ex_name+": ",
-                                          subsequent_indent=" "*(len(ex_name+": ")))) +
-                  "\033[0m", end='\n\n')
-            print("\033[93m"+"File will be skipped for now."+"\033[0m")
-            if i != num_files and num_files != 1:
-                on_err = input(f"{(num_files-i)} files remaining in queue. Continue? ([y], n) ")
-                if 'n' in on_err.lower():
-                    print("Aborting...")
-                    sys.exit()
-            else:
-                print("No remaining files to read. Aborting...")
-        finally:
-            print("\n{:=^70}\n".format(""))
+    with loggercontext(quiet=silenced) as output:
+        for i, fname in enumerate(csv_file_list, 1):
+            if silenced:
+                output.write_progress(i, num_files, colors=clr)
+            fcount = f"({i} / {num_files})"
+            startmsg = f"Reading in file - {fname}"
+            print(f"{startmsg:<35}{fcount:>35}\n")
+            try:
+                main(fname, output_dir(fname))
+            except Exception:
+                if silenced:
+                    output.override_quiet()
+                ex_name = str(sys.exc_info()[0].__name__)
+                width = 80
+                print(clr.WARN + "Exception occurred while running on file " +
+                      clr.ENDC+f"{fname}", end="\n\n")
+                print("\n".join(textwrap.wrap(str(sys.exc_info()[1]),
+                                              width=width - len(ex_name+": "),
+                                              initial_indent=clr.FAIL+ex_name+": "+clr.ENDC,
+                                              subsequent_indent=" "*(len(ex_name+": ")))),
+                      end='\n')
+                if silenced:
+                    output.silence()
+                print("\n"+clr.WARN+"File will be skipped for now."+clr.ENDC)
+                if args['yes'] or silenced:
+                    pass
+                elif i != num_files and num_files != 1:
+                    print(f"{(num_files-i)} files remaining in queue. "
+                          "Continue? ([y], n) ")
+                    sys.stdin.flush()
+                    on_err = sys.stdin.readline()
+                    if 'n' in on_err.lower():
+                        print("Aborting...")
+                        sys.exit()
+                else:
+                    print("No remaining files to read. Aborting...")
+            finally:
+                print(clr.BOLD+"\n{:=^70}\n".format("")+clr.ENDC)
