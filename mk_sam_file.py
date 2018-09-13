@@ -431,11 +431,11 @@ def generate_inp_file(od, df, hdf):
         inps += '4\t'
 
     # DETERMINE NUMBER OF TERMINAL CHARACTERS
-    sample_list = list(df.keys())
+    sample_list = list(map(str, df.keys()))
     sample_ct = len(sample_list)
     # get length of shortest sample name
     char_num = len(min(sample_list, key=len))
-    term_ct = 0
+    term_ct, term_unique = 0, 0
     # initialize list keeping track of remaining (left) characters
     the_rest = sample_list
     # scan sample name from right to left
