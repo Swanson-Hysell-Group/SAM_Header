@@ -1,11 +1,13 @@
+import os
 import sys
+import traceback as tb
 import numpy.linalg
 import textwrap
 import argparse
 import time
+import pandas as pd
 from datetime import datetime as dt
 from contextlib import ContextDecorator
-import traceback
 
 
 ################################################################################
@@ -21,8 +23,8 @@ def igrf(input_list):
         XXXX.XXXX
     with years and decimals of a year (A.D.)
     """
-    x, y, z, f = doigrf(input_list[3] % 360.,
-                        input_list[2], input_list[1], input_list[0])
+    x, y, z, f = doigrf(input_list[3] % 360., input_list[2], input_list[1],
+                        input_list[0])
     Dir = cart2dir((x, y, z))
     return Dir
 
@@ -414,8 +416,6 @@ def to_year_fraction(date):
     return date.year + fraction
 
 
-
-
 ################################################################################
 #                            Command Line Interface                            #
 ################################################################################
@@ -511,7 +511,7 @@ def get_parser(with_examples=False):
     config_opts.add_argument('-a', '--all', action='store_true',
                              help="""Create .sam header files for all CSV files
                              in the current directory.""")
-    config_opts.add_argument('-d', '--dirout', dest='output_directory', metavar='',
+    config_opts.add_argument('-o', '--output-path', dest='output_directory', metavar='',
                              help="""Output directory. If path does not exist,
                              it will be created. To automatically configure
                              output directories (based on csv name), use
@@ -546,7 +546,9 @@ class tclr:
     OKBLUE = '\033[94m'
     OKGREEN = '\033[92m'
     WARN = '\033[93m'
-    FAIL = '\033[91m'
+    WARNB = '\033[33;1m'
+    ERR = '\033[31m'
+    FAIL = '\033[31;1m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
 
@@ -555,47 +557,83 @@ class tclr:
         self.OKBLUE = ''
         self.OKGREEN = ''
         self.WARN = ''
+        self.WARNB = ''
         self.FAIL = ''
         self.ENDC = ''
         self.BOLD = ''
 
 
 class Logger(object):
-    """Logger
+    """
+    Handles redirected stdout and configures output to terminal or log file.
+
     If quiet==True, replace long output with progress bar. A summary of warnings
     and all exceptions will still be shown. Otherwise, Logger simply relays all
     print statements back to stdout.
     """
-    def __init__(self, quiet=False):
+    def __init__(self, color=False, quiet=False):
+        self.clr = tclr()
+        if not color:  # disable color
+            self.clr.disable()
         self.quiet = quiet
         self.terminal = sys.stdout
         self.log = open("mk_sam.log", "w+")
-        self.log.write('\n{:-^70}\n\n'.format('  Started at {}  '.format(time.asctime())))
+        self.log.write('{:-^70}\n'.format('  Started at {}  '.format(time.asctime())))
 
     def write(self, message):
-        """main write method for redirection of sys.stdout"""
+        """Main write method for redirected sys.stdout"""
+        # classify messages by type (Warning, Error, Header/Information) so they
+        # can be prioritized accordingly (and colored if color==True)
+        if 'WARNING: ' in str(message):
+            if 'WARNING: declinations' not in str(message):
+                # only write summary warning to log
+                self.log.write(message+'\n')
+            message = self.clr.WARN + message + self.clr.ENDC
+        elif 'Exception' in str(message):
+            message = self.clr.ERR + message + self.clr.ENDC
+        elif '----' in str(message) or '====' in str(message):
+            message = self.clr.BOLD + message + self.clr.ENDC
+        elif 'Reading in file' in str(message):
+            self.log.write('\n'+message)
         if not self.quiet:
             self.terminal.write(message)
-        else:
-            # if applicable, capture and show the final warning message and
-            # count for large declination difference
-            if ('WARNING: ' in str(message) and
-                    'WARNING: declinations' not in str(message)):
-                # self.log.write("\033[2K\r")
-                message = message.replace('\033[93m', '')
-                message = message.replace('\033[0m', '')
-                self.log.write(message)
-                self.log.write("\n")
 
-    def write_progress(self, n, num, colors = None):
+    def write_progress(self, n, num):
+        """Alternative CLI display that only shows progress bar
+
+        Errors will still be shown in standard output stream, but all Warnings
+        will be redirected to the log file.
+        """
         i = int((n/num)*100)
         width = int((i + 1) / 2)
         bar = "[" + "#" * width + " " * (50 - width) + "]"
         count = f"( {n} / {num} )"
-        if n == num and colors is not None:
-            count = colors.OKGREEN + f"( {n} / {num} )" + colors.ENDC
+        if n == num and self.clr:
+            count = self.clr.OKGREEN + f"( {n} / {num} )" + self.clr.ENDC
         self.terminal.write("\033[1000D" + bar + " "*4 + count)
         self.flush()
+
+    def write_err(self, ex_name, ex_value, ex_tb):
+        full_stack = '\n'.join(tb.format_exception(ex_name, ex_value, ex_tb)[:-1])
+        ex_name = str(ex_name.__name__)
+        ex_value = str(ex_value)
+        err_msg = ("\n".join(textwrap.wrap(ex_value,
+                                           width=99 - len(ex_name+": "),
+                                           initial_indent=ex_name+": ",
+                                           subsequent_indent="    ")))
+        self.log.write(err_msg+"| ".join(["\n"]+full_stack.splitlines(keepends=True)))
+        init_indent = self.clr.FAIL + ex_name + ": " + self.clr.ENDC
+        err_msg = ("\n".join(textwrap.wrap(ex_value,
+                                           width=99 - len(ex_name+": "),
+                                           initial_indent=init_indent,
+                                           subsequent_indent="    ")))
+        # trace = self.clr.FAIL + '\n'.join(tb.format(ex_tb)) + self.clr.ENDC
+        self.terminal.write(err_msg+'\n')
+
+    def usrinput(self, prompt):
+        self.terminal.write(prompt)
+        self.terminal.flush()
+        return sys.stdin.read(1)
 
     def override_quiet(self):
         """override quiet option for important messages (e.g. errors)"""
@@ -619,14 +657,68 @@ class loggercontext(ContextDecorator):
     `with` statement). This also ensures that sys.stdout is returned to its
     original state.
     """
-    def __init__(self, quiet=False):
+    def __init__(self, color=False, quiet=False):
+        self.color = color
         self.quiet = quiet
 
     def __enter__(self):
-        sys.stdout = Logger(quiet=self.quiet)
+        sys.stdout = Logger(color=self.color, quiet=self.quiet)
         return sys.stdout
 
     def __exit__(self, *exc):
         sys.stdout.log.close()
         sys.stdout = sys.__stdout__
         return False
+
+
+################################################################################
+#                             File Format Checker                              #
+################################################################################
+
+
+def convert_to_csv(file_name):
+    """Convert an excel file file_name to a csv"""
+    _, extension = os.path.splitext(file_name)
+    x = pd.read_excel(file_name, header=None)
+    new_name = file_name.replace(extension, '.csv')
+    print(f"Converting {file_name} to {new_name}...")
+    x.to_csv(new_name, encoding='utf-8', index=False, header=False)
+    return new_name
+
+
+def fix_excess_cols(file_name):
+    """Trim excess columns in csv file"""
+    csv_file = pd.read_csv(file_name, header=None)
+    csv_file.dropna(1, 'all', inplace=True)
+    csv_file.to_csv(file_name, index=False, header=False)
+    return True
+
+
+# this does not seem to be much of an issue anymore as every 'read' tool we are
+# using here supports universal newlines by default; there seems to be bigger
+# trouble simply with excel saving csv files directly, which seems to often
+# result in endless columns being output for every row (unless this file is
+# opened again separately in Excel; then it is fine)(see fix_excess_cols, which
+# fixes this)
+def fix_line_breaks(file_name):
+    """ Reads in the file given as a command line argument and rewrites it both line
+        break types '\ r' and '\ n' so that python will for sure register all lines
+    """
+    # fix line breaks between different OS and python's default
+    try:
+        csv_file = open(file_name, 'r')
+        csv_str = csv_file.read()
+    except UnicodeDecodeError:
+        csv_file.close()
+        # Both pandas and the python open built-in sometimes complain about
+        # encoding of these csv files. Switching to the encoding below generally
+        # does the trick...no idea what the underlying problem is though
+        # <09-08-18, Luke Fairchild> #
+        csv_file = open(file_name, 'r', encoding="ISO-8859-1")
+        csv_str = csv_file.read()
+    if csv_str.find('\r\n') != -1:
+        fixed_lines = csv_str.replace('\r\n', '\n')
+    else:
+        fixed_lines = csv_str.replace('\r', '\n')
+    with open(file_name, 'w') as new_csv_file:
+        new_csv_file.write(fixed_lines)

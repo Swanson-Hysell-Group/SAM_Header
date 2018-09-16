@@ -2,15 +2,24 @@
 
 This repository contains Python code that takes paleomagnetic core orientation data from a .csv template and converts into the .sam format. This file format is used by the RAPID paleomag software (http://sourceforge.net/projects/paleomag/) that is used to generate paleomagnetic and rock magnetic data with 2G Enterprise superconducting rock magnetometers.
 
-## How to use the code:
-
-- Download the [zip of this repository](https://github.com/Swanson-Hysell-Group/SAM_Header/archive/master.zip)
+## How to use the code
+- Download the [ZIP of this repository](https://github.com/Swanson-Hysell-Group/SAM_Header/archive/master.zip)
 - Enter data into the spreadsheet template (sam_sample_template.xlsx or sam_sample_template.csv) and then save as a csv. 
-- Navigate into the folder with the program and template. Run the python script mk_sam_file.py using command line specifying use of the .csv file you have saved:
-```bash
-~/$ python mk_sam_file.py site.csv [optional - output_path]
-```
+- At the command line, navigate into the folder with the program and template. Run the python script `mk_sam_file.py`, specifying the name of the .csv file created from the template.
+
+    ```bash
+    ~/$ mk_sam_file.py site.csv -o [output path - optional]
+    ```
 - The code should then generate a .sam header file as well as sample files for each sample in the site.
+- For quick reference to basic instructions and examples, use `mk_sam_file.py --help`
+
+##### Additional setup (optional, but you probably want to do this!)
+
+- To call the `mk_sam_file.py` script outside of this directory, add the following line to your `~/.profile` or `~/.bash_profile`
+
+    ```bash
+    export PATH="<path to this repository>/SAM_Header/:$PATH"
+    ```
 
 ## Site fields:
 
@@ -27,7 +36,7 @@ The first six rows are site information. These following values pertain to the s
 Rows 8 and onward are sample information. These following values pertain to the samples.
 
 - *magnetic_core_strike* is the strike of the ''core plate'' which is the plane perpendicular to the core axis. This number is the trend of the core axis + 90º.
-- *core_dip* is the dip of the ``core plate'' which is the plane perpendicular to the core axis. This number is the conjugate of the plunge of the core axis.
+- *core_dip* is the dip of the ''core plate'' which is the plane perpendicular to the core axis. This number is the conjugate of the plunge of the core axis.
 - *bedding_strike* is the strike of the bedding using the right-hand rule. This value will be used for tilt-correcting the data. If no tilt-correction is necessary enter 0 for bedding_strike and 0 for bedding_dip.
 - *bedding_dip* is the dip of the bedding. This value will be used for tilt-correcting the data.
 - *mass* is the mass of the specimen in grams. If you do not wish to enter mass data, enter 1.0 for each specimen.
@@ -49,13 +58,38 @@ Rows 8 and onward are sample information. These following values pertain to the 
 
 ## Dependencies
 
-The code requires the standard scientific python modules of numpy, scipy and pandas. Installing the Enthought Canopy python distribution (https://www.enthought.com/products/canopy/) is a way you can get quickly setup with python and the dependencies needed to run this code. The Anaconda distribution (Python 2.7) is another way to get set-up that is relatively straight forward (https://www.continuum.io/downloads). Other necessary functions from the PmagPy project (https://github.com/PmagPy/PmagPy/) that are dependencies for mk_sam_file.py have been collected in  mk_sam_utilities.py which is included in the repository such that you don't need to download PmagPy for the program to run.
+The code requires the standard scientific python modules numpy and pandas. The Anaconda distribution
+(Python 3.6) is a relatively straight-forward way to get set up quickly
+(https://www.anaconda.com/download/). Other necessary functions from the PmagPy project
+(https://github.com/PmagPy/PmagPy/) that are dependencies for `mk_sam_file.py` have been collected
+in `mk_sam_utilities.py` which is included in the repository such that you don't need to download
+PmagPy for the program to run.
 
-## Tips
-If your directory structure follows the general format of ```./<site>/<template>.csv``` and you have multiple templates ready for conversion, you might find the following command line regex useful:
+## Other built-in features
+### Working with multiple `<site>.csv` files
+It is often the case that header files need to be generated for multiple sites, each with their own
+.csv file. To run `mk_sam_file.py` on multiple files, simply run the script with a sequence of file
+names:
+```bash
+~/$ mk_sam_file.py Z01.csv Z02.csv Z03.csv Z04.csv [...]
+```
+You can also pass glob patterns:
+```bash
+~/$ mk_sam_file.py Z*.csv # matches all files listed obove
+~/$ mk_sam_file.py Z0[1-3].csv # excludes Z04.csv
+```
+To create header files for all .csv files in your current working directory:
+```bash
+~/$ mk_sam_file.py --all
+```
 
-```find */*\.csv -exec python mk_sam_file.py '{}' \;```
-
-This regex navigates into all subdirectories, generates .sam header files for any CSV files it finds, and outputs them into the same subdirectory. Note that you must add the SAM_Header folder to your path so that the ```mk_sam_file.py``` program is accessible outside of your current directory. To do this, open ```.profile``` or ```.bash_profile``` (located in your home directory) in a text editor and add the following line:
-
-```export PATH=<absolute path to ‘SAM_Header’ folder>/SAM_Header/:./:$PATH```
+### Automate output directory
+By default, header files are written to your current working directory. As shown in [How to
+use](#how-to-use), you can specify an output directory for header files using the option `-o` or
+`--output-path`. To automatically write header files to a subdirectory with the same name as the
+.csv file, use the `-ad` or `--auto-dirs` flag:
+```bash
+~/$ mk_sam_file.py Z01.csv Z02.csv -ad
+# writes Z01 header files to ./Z01/, Z02 header files to ./Z02/
+```
+The output directory will be created if it does not yet exist.
