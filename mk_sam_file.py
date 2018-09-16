@@ -2,7 +2,6 @@
 
 import os
 import sys
-# import argparse
 import textwrap
 import re
 import math
@@ -12,10 +11,6 @@ from mk_sam_utilities import *
 from datetime import datetime as dt
 from functools import reduce
 
-# disable colors by default
-# (refer to color class tclr in mk_sam_utilities)
-clr = tclr()
-clr.disable()
 
 def main(csv_file, output_directory):
     """
@@ -78,7 +73,7 @@ def main(csv_file, output_directory):
     #                         Find Calculated Values                          #
     ###########################################################################
 
-    print(clr.BOLD+'{:-^70}'.format('LOCAL MAGNETIC DECLINATION')+clr.ENDC+'\n')
+    print('{:-^70}'.format('LOCAL MAGNETIC DECLINATION'), end='\n')
     # calculate sun_core_strike for all samples
     for sample in samples:
         if (not sdf[sample].isnull().any()):
@@ -154,30 +149,34 @@ def main(csv_file, output_directory):
             print("    {:+.2f}".format(df[sample]['calculated_mag_dec']))
             if abs(float(df[sample]['IGRF_local_dec']) -
                    float(df[sample]['calculated_mag_dec'])) > 5:
-                print(clr.WARN+"WARNING: declinations differ by >5 degrees"+clr.ENDC)
+                print("WARNING: declinations differ by >5 degrees")
                 warning_count += 1
         print('')
     if warning_count > 0:
         warnct_report = textwrap.dedent(f"""\
-                  *{warning_count}* out of *{len(samples)}* samples yielded
+                  {warning_count} out of {len(samples)} samples yielded
                   magnetic declination values that differ by more than 5 degrees
                   from IGRF. Be sure to check values in {file_name} before
                   proceeding.""")
-        print(clr.WARN+"\n".join(textwrap.wrap(warnct_report, width=70,
-                                               initial_indent='WARNING: ',
-                                               subsequent_indent='         '))
-              + clr.ENDC,
+        print("\n".join(textwrap.wrap(warnct_report, width=70,
+                                      initial_indent='WARNING: ',
+                                      subsequent_indent='         ')),
               end='\n\n')
     print('Site averages:')
-    print('    '+"Average of local IGRF declination is: "
-          "{:+.4f}".format(df.transpose()['IGRF_local_dec'].mean()))
+    igrf_msg = "    Average of local IGRF declination is:"
+    print("{}{:>{width}}".format(igrf_msg, "{:+07.2f}".format(
+        df.transpose()['IGRF_local_dec'].mean()),
+                                 width=60-len(igrf_msg)))
     # read mag decs as numeric; values of 'insufficient data' become NaN
     mag_decs = pd.to_numeric(df.transpose().calculated_mag_dec, errors='coerce')
     if pd.notna(mag_decs.mean()):  # skip this if all values are NaN
-        print('    '+"Average of calculated local declination: "
-              "{:+.4f}  (N={:d})".format(mag_decs.mean(), mag_decs.count()))
+        mag_dec_msg = str("    Average of calculated local declination " +
+                          "(N={:d}):".format(mag_decs.count()))
+        print("{}{:>{width}}".format(mag_dec_msg,
+                                     "{:+07.2f}".format(mag_decs.mean()),
+                                     width=60-len(mag_dec_msg)))
 
-    print('\n'+clr.BOLD+'{:-^70}'.format('OUTPUT')+clr.ENDC)
+    print("\n{:-^70}".format("OUTPUT"))
 
     ###########################################################################
     #                         Create .SAM Header File                         #
@@ -201,11 +200,10 @@ def main(csv_file, output_directory):
         sam_header += hdf['site_info']['site_id'] + str(sample) + '\r\n'
 
     # creating and writing file
-    print('Writing file - ' + os.path.join(output_directory, hdf['site_info']['site_id'] + '.sam'))
-    sam_file = open(os.path.join(output_directory,
-                                 hdf['site_info']['site_id'] + '.sam'), 'w+')
-    sam_file.write(sam_header)
-    sam_file.close()
+    sam_file_name = os.path.join(output_directory, hdf['site_info']['site_id'] + '.sam')
+    print('Writing file - ' + sam_file_name)
+    with open(sam_file_name, 'w+') as sam_file:
+        sam_file.write(sam_header)
 
     ###########################################################################
     #                           Create Sample Files                           #
@@ -306,82 +304,57 @@ def main(csv_file, output_directory):
 
         # create and write sample file
         new_file = new_file.rstrip('\r\n') + '\r\n'
-        print('Writing file - ' + os.path.join(output_directory, site_id + str(sample)))
-        sample_file = open(os.path.join(output_directory, site_id + str(sample)), 'w+')
-        sample_file.write(new_file)
-        sample_file.close()
+        samp_file_name = os.path.join(output_directory, site_id + str(sample))
+        print('Writing file - ' + samp_file_name)
+        with open(samp_file_name, 'w+') as sample_file:
+            sample_file.write(new_file)
 
     ###########################################################################
     #                        Write New Values to .csv                         #
     ###########################################################################
 
-    csv_file = open(file_name, 'rU')
-    csv_str = ''
+    with open(file_name, 'r') as csv_file:
+        csv_str = ''
 
-    for i in range(5):
-        csv_str += csv_file.readline()
+        for i in range(5):
+            csv_str += csv_file.readline()
 
-    comma_count = csv_file.readline().count(',')
-    csv_str += 'site_elevation' + ',' + \
-               str(hdf['site_info']['site_elevation']) + ','*(comma_count-1) + '\n'
-    # elev_line = csv_file.readline().split(',')
-    # elev_line[1] = str(hdf['site_info']['site_elevation'])
-    # reduce(lambda x,y: x + ',' + y, elev_line)
+        comma_count = csv_file.readline().count(',')
+        csv_str += 'site_elevation' + ',' + \
+                   str(hdf['site_info']['site_elevation']) + ','*(comma_count-1) + '\n'
+        # elev_line = csv_file.readline().split(',')
+        # elev_line[1] = str(hdf['site_info']['site_elevation'])
+        # reduce(lambda x,y: x + ',' + y, elev_line)
 
-    header = csv_file.readline()
-    csv_str += header
-    header = header.strip('\r\n').split(',')
+        header = csv_file.readline()
+        csv_str += header
+        header = header.strip('\r\n').split(',')
 
-    for sample in samples:
-        line = csv_file.readline()
-        items = line.split(',')
-        for i in range(len(header)):
-            if i == 0:
-                continue
-            elif header[i] == 'calculated_IGRF':
-                if type(df[sample][header[i]]) == str or type(df[sample][header[i]]) == float:
+        for sample in samples:
+            line = csv_file.readline()
+            items = line.split(',')
+            for i in range(len(header)):
+                if i == 0:
+                    continue
+                elif header[i] == 'calculated_IGRF':
+                    if type(df[sample][header[i]]) == str or type(df[sample][header[i]]) == float:
+                        items[i] = str(df[sample][header[i]])
+                    else:
+                        items[i] = str(list(df[sample][header[i]])).replace(',', ';')
+                elif header[i] in df[sample].keys():
                     items[i] = str(df[sample][header[i]])
+                elif header[i] in sdf[sample].keys():
+                    items[i] = str(sdf[sample][header[i]])
                 else:
-                    items[i] = str(list(df[sample][header[i]])).replace(',', ';')
-            elif header[i] in df[sample].keys():
-                items[i] = str(df[sample][header[i]])
-            elif header[i] in sdf[sample].keys():
-                items[i] = str(sdf[sample][header[i]])
-            else:
-                raise KeyError('there is no item: ' + header[i])
-        csv_str += reduce(lambda x, y: x + ',' + y, items) + '\r\n'
+                    raise KeyError('there is no item: ' + header[i])
+            csv_str += reduce(lambda x, y: x + ',' + y, items) + '\r\n'
 
-    print('Writing file - ' + os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'))
-    new_csv_file = open(os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'), 'w+')
-    new_csv_file.write(csv_str)
-    new_csv_file.close()
-
+    new_csv_fname = os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv')
+    print('Writing file - ' + new_csv_fname)
+    with open(new_csv_fname, 'w+') as new_csv_file:
+        new_csv_file.write(csv_str)
     generate_inp_file(output_directory, df, hdf)
 
-
-def fix_line_breaks(file_name):
-    """ Reads in the file given as a command line argument and rewrites it both line
-        break types '\ r' and '\ n' so that python will for sure register all lines
-    """
-    # fix line breaks between different OS and python's default
-    try:
-        csv_file = open(file_name, 'r')
-        csv_str = csv_file.read()
-    except UnicodeDecodeError:
-        csv_file.close()
-        # Both pandas and the python open built-in sometimes complain about
-        # encoding of these csv files. Switching to the encoding below generally
-        # does the trick...no idea what the underlying problem is though
-        # <09-08-18, Luke Fairchild> #
-        csv_file = open(file_name, 'r', encoding="ISO-8859-1")
-        csv_str = csv_file.read()
-    if csv_str.find('\r\n') != -1:
-        fixed_lines = csv_str.replace('\r\n', '\n')
-    else:
-        fixed_lines = csv_str.replace('\r', '\n')
-    new_csv_file = open(file_name, 'w')
-    new_csv_file.write(fixed_lines)
-    csv_file.close()
 
 
 def generate_inp_file(od, df, hdf):
@@ -474,42 +447,32 @@ def generate_inp_file(od, df, hdf):
     inps += "None\t"
     inps += '0.0\n'
 
-    print('Writing file - ' + os.path.join(od, hdf['site_info']['site_id'] + '.inp'))
+    inp_out = os.path.join(od, hdf['site_info']['site_id'] + '.inp')
+    print('Writing file - ' + inp_out)
     if od != '' and not os.path.exists(od):
         os.makedirs(od)
-    inpf = open(os.path.join(od, hdf['site_info']['site_id'] + '.inp'), 'w+')
-    inpf.write(inps)
-    inpf.close()
-
-
-# from https://stackoverflow.com/a/3173331
-def update_progress(out, progress):
-    out.write('\r[{0}] {1}%'.format('#'*(progress/10), progress))
+    with open(inp_out, 'w+') as inpf:
+        inpf.write(inps)
 
 
 if __name__ == "__main__":
-    # Universal newlines are more standardized now, so it might be safe to
-    # remove the fix_line_breaks functions or move it to utilities.
-    # fix_line_breaks()
-
-    # do not print examples unless long --help is given
-    if '--help' not in sys.argv:
+    # show examples if long option of help is given
+    if '--help' in sys.argv:
+        show_examples = True
+    else:
         show_examples = False
-    # get argument parser
-    parser = get_parser(with_examples = show_examples)
-    # parse arguments from command line
+    # get argument parser and read options from command line
+    parser = get_parser(with_examples=show_examples)
     args = vars(parser.parse_args())
     csv_file_list = args.pop('csv_file')
     num_files = len(csv_file_list)
-    if args["color"]:
-        clr = tclr()
-    # if no 'read' option specified...
+    # if no filename and --all not specified...
     if num_files == 0 and not args['all']:
         parser.error("Nothing to read.\nYou must provide file name(s) unless "
                      "running with the --all option.")
     # handle csv_file/--all argument conflicts
     elif num_files != 0 and args['all']:
-        parser.error("Ambiguous; use file name(s) or --all (not both)")
+        parser.error("Conflicting arguments; use file name(s) or --all (not both)")
     # handle the --all option
     elif num_files == 0 and args['all']:
         # find all csv files in CWD
@@ -525,47 +488,55 @@ if __name__ == "__main__":
         def output_dir(x): return args["output_directory"]
     # csv list may have changed; do a recount
     num_files = len(csv_file_list)
-    if (num_files > 10 or args['quiet']) and not args['verbose']:
-        silenced = True
-    else:
-        silenced = False
+
+    # revert to short output if more than 10 files; this is pretty arbitrary
+    # though...the main functionality of 'quiet' is really just to provide a
+    # less cluttered display with a cool progress bar
+    silenced = ((num_files > 10 or args['quiet']) and not args['verbose'])
 
     # now run all files through the main program
-    with loggercontext(quiet=silenced) as output:
+    with loggercontext(color=args["color"], quiet=silenced) as output:
         for i, fname in enumerate(csv_file_list, 1):
-            if silenced:
-                output.write_progress(i, num_files, colors=clr)
-            fcount = f"({i} / {num_files})"
-            startmsg = f"Reading in file - {fname}"
-            print(f"{startmsg:<35}{fcount:>35}\n")
             try:
+                # convert excel file to csv
+                if fname.endswith('.xlsx') or fname.endswith('.xls'):
+                    fname = convert_to_csv(fname)
+                else:  # if csv, be sure to solve issue with excess columns
+                    fix_excess_cols(fname)
+                if silenced:
+                    output.write_progress(i, num_files)
+                fcount = f"({i} / {num_files})"
+                startmsg = f"Reading in file - {fname}"
+                print(f"{startmsg:<35}{fcount:>35}\n")
                 main(fname, output_dir(fname))
             except Exception:
                 if silenced:
                     output.override_quiet()
                 ex_name = str(sys.exc_info()[0].__name__)
-                width = 80
-                print(clr.WARN + "Exception occurred while running on file " +
-                      clr.ENDC+f"{fname}", end="\n\n")
-                print("\n".join(textwrap.wrap(str(sys.exc_info()[1]),
-                                              width=width - len(ex_name+": "),
-                                              initial_indent=clr.FAIL+ex_name+": "+clr.ENDC,
-                                              subsequent_indent=" "*(len(ex_name+": ")))),
-                      end='\n')
+                print(f"Got the following Exception while running on {fname}.")
+                pre_exc_msg = textwrap.dedent("""\
+                        Refer to the `sam_header_template` files and confirm
+                        that this file is correctly formatted. Skipping for
+                        now...""")
+                print("\n".join(textwrap.wrap(pre_exc_msg, width=70,
+                                              initial_indent="  ",
+                                              subsequent_indent="  ")),
+                      end='\n\n')
+                output.write_err(*sys.exc_info())
                 if silenced:
                     output.silence()
-                print("\n"+clr.WARN+"File will be skipped for now."+clr.ENDC)
                 if args['yes'] or silenced:
                     pass
                 elif i != num_files and num_files != 1:
-                    print(f"{(num_files-i)} files remaining in queue. "
-                          "Continue? ([y], n) ")
-                    sys.stdin.flush()
-                    on_err = sys.stdin.readline()
-                    if 'n' in on_err.lower():
+                    on_err = output.usrinput(f"{(num_files-i)} files remaining in queue. "
+                                             "Continue? ([y], n) ")
+                    # sys.stdin.flush()
+                    # on_err = sys.stdin.readline()
+                    if on_err.lower() == 'n':
                         print("Aborting...")
                         sys.exit()
                 else:
                     print("No remaining files to read. Aborting...")
             finally:
-                print(clr.BOLD+"\n{:=^70}\n".format("")+clr.ENDC)
+                print("\n{:=^70}\n".format(""))
+                print("All warnings/errors have been written to mk_sam.log.")
