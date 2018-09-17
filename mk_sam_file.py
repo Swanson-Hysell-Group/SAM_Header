@@ -2,6 +2,9 @@
 
 import os
 import sys
+import argparse
+import textwrap
+import re
 import math
 import numpy as np
 import pandas as pd
@@ -10,7 +13,7 @@ from datetime import datetime as dt
 from functools import reduce
 
 
-def main():
+def main(csv_file, output_directory):
     """
     NAME
         mk_sam_file.py
@@ -32,18 +35,15 @@ def main():
     ###########################################################################
 
     # fetching comand line data
-    file_name = sys.argv[1]
+    file_name = csv_file
     directory = os.path.split(file_name)[0]
 
-    try:
-        output_directory = sys.argv[2]
-    except IndexError:
+    if output_directory is not None:
+        output_directory = os.path.expanduser(output_directory)
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+    else:
         output_directory = directory
-
-    if output_directory != '' and not os.path.exists(output_directory):
-        os.makedirs(output_directory)
-
-    print('Reading in file - ' + file_name)
 
     df_cols = ['sample_name', 'comment', 'strat_level',
                'magnetic_core_strike', 'core_dip', 'bedding_strike',
@@ -54,7 +54,7 @@ def main():
     sdf_cols = ['sample_name', 'shadow_angle', 'GMT_offset',
                 'year', 'month', 'days', 'hours', 'minutes']
 
-    # file read in
+    # read in file
     hdf = pd.read_csv(file_name, header=0, index_col=0, nrows=5, usecols=[0, 1])
     df = pd.read_csv(file_name, header=6, index_col=0,
                      usecols=df_cols, dtype=object).transpose()
@@ -67,13 +67,14 @@ def main():
                   'bedding_strike', 'bedding_dip', 'mass']
     site_values = ['site_lat', 'site_long']
     time_types = ['year', 'month', 'days', 'hours', 'minutes']
+    # track number of declination-difference warnings
+    warning_count = 0
 
     ###########################################################################
     #                         Find Calculated Values                          #
     ###########################################################################
 
     print('---------------------LOCAL MAGNETIC DECLINATION-----------------------')
-
     # calculate sun_core_strike for all samples
     for sample in samples:
         if (not sdf[sample].isnull().any()):
@@ -103,9 +104,9 @@ def main():
 
     # calculate IGRF
         if (sdf[sample]['GMT_offset':'month'].isnull()).any():
-            raise ValueError("not enough data to calculate IGRF to correct "
-                             "bedding please input at least GMT_offset, "
-                             "year, month, day of measurement\n")
+            raise ValueError("Not enough data to calculate IGRF and correct "
+                             "bedding. Please input at least GMT_offset, "
+                             "year, month, and day of measurement.")
         else:
             if math.isnan(float(hdf['site_info']['site_elevation'])):
                 hdf['site_info']['site_elevation'] = 0.0
@@ -128,14 +129,15 @@ def main():
                 df[sample]['IGRF_local_dec'] = df[sample]['calculated_IGRF'][0]
             # print out the local IGRF
             print(hdf['site_info']['site_id'] + str(sample) + " has local IGRF declination of: ")
-            print(df[sample]['IGRF_local_dec'])
+            print("    {:+.2f}".format(df[sample]['IGRF_local_dec']))
 
         # calculate magnetic declination
-        print('The local declination calculated through magnetic and sun compass comparison is:')
-        if math.isnan(float(df[sample]['sun_core_strike'])) or \
-                math.isnan(float(df[sample]['magnetic_core_strike'])):
+        print('Magnetic & sun compass comparison gives local declination of:')
+        # print('Local declination calculated from magnetic and sun compass comparison is:')
+        if (math.isnan(float(df[sample]['sun_core_strike'])) or
+                math.isnan(float(df[sample]['magnetic_core_strike']))):
             df[sample]['calculated_mag_dec'] = 'insufficient data'
-            print('insufficient data')
+            print('    '+'insufficient data')
         else:
             calc_mag_dec = (float(df[sample]['sun_core_strike']) -
                             float(df[sample]['magnetic_core_strike']))
@@ -148,16 +150,29 @@ def main():
             print("    {:+.2f}".format(df[sample]['calculated_mag_dec']))
             if abs(float(df[sample]['IGRF_local_dec']) -
                    float(df[sample]['calculated_mag_dec'])) > 5:
-                print("WARNING: local IGRF declination & calculated magnetic "
-                      "declination are more than 5 degree different")
+                print("\033[93m"+"WARNING: declinations differ by >5 degrees"+"\033[0m")
+                warning_count += 1
         print('')
-    print('')
+    if warning_count > 0:
+        warnct_report = textwrap.dedent(f"""\
+                  *{warning_count}* out of *{len(samples)}* samples yielded
+                  magnetic declination values that differ by more than 5 degrees
+                  from IGRF. Be sure to check values in {file_name} before
+                  proceeding.""")
+        print("\033[93m"+"\n".join(textwrap.wrap(warnct_report, width=70,
+                                                 initial_indent='WARNING: ',
+                                                 subsequent_indent='         '))+"\033[0m",
+              end='\n\n')
     print('Site averages:')
-    print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
-    # print('Average of calculated local declination: ' +
-    #       str(df.transpose()['calculated_mag_dec'].mean()))
-    print('')
-    print('---------------------OUTPUT-----------------------')
+    print("Average of local IGRF declination is: "
+          "{:+.4f}".format(df.transpose()['IGRF_local_dec'].mean()))
+    # read mag decs as numeric; values of 'insufficient data' become NaN
+    mag_decs = pd.to_numeric(df.transpose().calculated_mag_dec, errors='coerce')
+    if pd.notna(mag_decs.mean()):  # skip this if all values are NaN
+        print("Average of calculated local declination: "
+              "{:+.4f}  (N={:d})".format(mag_decs.mean(), mag_decs.count()))
+
+    print('\n---------------------OUTPUT-----------------------')
 
     ###########################################################################
     #                         Create .SAM Header File                         #
@@ -339,28 +354,22 @@ def main():
     generate_inp_file(output_directory, df, hdf)
 
 
-def fix_line_breaks():
+def fix_line_breaks(file_name):
     """ Reads in the file given as a command line argument and rewrites it both line
         break types '\ r' and '\ n' so that python will for sure register all lines
     """
-    file_name = sys.argv[1]
     # fix line breaks between different OS and python's default
     try:
         csv_file = open(file_name, 'r')
         csv_str = csv_file.read()
     except UnicodeDecodeError:
         csv_file.close()
-        # I occasionally get encoding errors when reading in these particular
-        # csv files using the default encoding of my platform (this is what the
-        # try statement above is using; it is usually utf-8)
-        #
-        # It happens both in pandas and with the open() built-in. Switching to
-        # the encoding below generally does the trick, although I have no idea
-        # what the underlying problem is...
-        #  <09-08-18, Luke Fairchild> #
+        # Both pandas and the python open built-in sometimes complain about
+        # encoding of these csv files. Switching to the encoding below generally
+        # does the trick...no idea what the underlying problem is though
+        # <09-08-18, Luke Fairchild> #
         csv_file = open(file_name, 'r', encoding="ISO-8859-1")
         csv_str = csv_file.read()
-
     if csv_str.find('\r\n') != -1:
         fixed_lines = csv_str.replace('\r\n', '\n')
     else:
@@ -469,8 +478,139 @@ def generate_inp_file(od, df, hdf):
 
 
 if __name__ == "__main__":
-    if '-h' in sys.argv:
-        help(main)
-        sys.exit()
-    fix_line_breaks()
-    main()
+    # Universal newlines are more standardized now, so it might be safe to
+    # remove the fix_line_breaks functions or move it to utilities.
+    # fix_line_breaks()
+    prog_desc = textwrap.dedent("""\
+            Using a formatted CSV, creates and writes a .sam header file and a
+            set of sample files. The program can be run on multiple files
+            provided either as an explicit sequence of names or as a glob
+            pattern (use --help to view examples).
+            """)
+
+    prog_epilog = textwrap.dedent("""\
+
+    Examples
+    --------
+    Create header and sample files from a single .csv for site `P1` containing
+    samples `1a` through `6a`:
+
+        $ mk_sam_file.py P1.csv
+
+        Output ('.' = current directory):
+            ./P1.csv(new) ./P1.sam  ./P1.inp  ./P1-1a  ./P1-2a
+            ./P1-3a       ./P1-4a   ./P1-5a   ./P1-6a
+
+    Same as above, but write files to another directory:
+
+        $ mk_sam_file.py P1.csv --dirout P1_files
+
+        Output:
+            ./P1_files/P1.csv(new)  ./P1_files/P1.sam  ./P1_files/P1.inp
+            ./P1_files/P1-1         ./P1_files/P1-2    [...]
+
+    Run script on multiple .csv files:
+
+        $ mk_sam_file.py P1.csv P2.csv P3.csv
+        --OR--
+        $ mk_sam_file.py P[1-3].csv
+
+        Output:
+            ./P1.csv(new)  ./P1.sam  ./P1.inp  ./P1-1a  ./P1-2a  [...]
+            ./P2.csv(new)  ./P2.sam  ./P2.inp  ./P2-1a  ./P2-2a  [...]
+            ./P3.csv(new)  ./P3.sam  ./P3.inp  ./P3-1a  ./P3-2a  [...]
+
+    Other options --all and --auto-dirs:
+
+        $ mk_sam_file.py --all --auto-dirs
+
+        Output:
+            ./P1/P1.csv(new)  ./P1/P1.sam  ./P1/P1.inp  ./P1/P1-1a  [...]
+            ./P2/P2.csv(new)  ./P2/P2.sam  ./P2/P2.inp  ./P2/P2-1a  [...]
+            ...
+            ./Z15/Z15.csv(new)  ./Z15/Z15.sam  ./Z15/Z15.inp  ./Z15/Z15.1a  [...]
+            ./CF10/CF10.csv(new)  ./CF10/CF10.sam  ./CF10/CF10.inp  [...]
+            etc.
+
+    """)
+    # do not print examples unless long --help is given
+    if '--help' not in sys.argv:
+        prog_epilog = None
+    parser = argparse.ArgumentParser(prog="mk_sam_file.py", add_help=False,
+                                     description=prog_desc,
+                                     epilog=prog_epilog,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('csv_file', nargs='*',
+                        help=""".csv file(s). Required unless the --all option
+                        is given""")
+    config_opts = parser.add_argument_group(title="additional options")
+    config_opts.add_argument('-h', '--help', action='help',
+                             help="""Show this help message and exit. Use long
+                             form (--help) to include examples.""")
+    config_opts.add_argument('-a', '--all', action='store_true',
+                             help="""Create .sam header files for all CSV files
+                             in the current directory.""")
+    # config_out = parser.add_mutually_exclusive_group()
+    config_opts.add_argument('--dirout', dest='output_directory', metavar='',
+                             help="""Output directory. If path does not exist,
+                             it will be created. To automatically configure
+                             output directories (based on csv name), use
+                             --auto-dirs.""")
+    config_opts.add_argument('--auto-dirs', action='store_true',
+                             help="""Write contents to a directory with same
+                             name as the csv file.""")
+    args = vars(parser.parse_args())
+    csv_file_list = args.pop('csv_file')
+    num_files = len(csv_file_list)
+
+    # if no 'read' option specified...
+    if num_files == 0 and not args['all']:
+        parser.error("Nothing to read.\nYou must provide file name(s) unless "
+                     "running with the --all option.")
+    # handle csv_file/--all argument conflicts
+    elif num_files != 0 and args['all']:
+        parser.error("Ambiguous; use file name(s) or --all (not both)")
+    # handle the --all option
+    elif num_files == 0 and args['all']:
+        # find all csv files in CWD
+        csv_file_list = []
+        filt = re.compile('.*\.csv')
+        # search for csv files in CWD (filtering directories)
+        for s in list(filter(os.path.isfile, os.listdir())):
+            if filt.match(s):
+                csv_file_list.append(s)
+    if args['auto_dirs']:  # return name without file extension
+        def output_dir(x): return x.replace('.csv', '')
+    else:  # otherwise use given arg (None by default)
+        def output_dir(x): return args["output_directory"]
+    # csv list may have changed; do a recount
+    num_files = len(csv_file_list)
+
+    # now run all files through the main program
+    for i, fname in enumerate(csv_file_list, 1):
+        fcount = f"({i} / {num_files})"
+        startmsg = f"Reading in file - {fname}"
+        print(f"{startmsg:<35}{fcount:>35}\n")
+        try:
+            main(fname, output_dir(fname))
+        except Exception:
+            ex_name = str(sys.exc_info()[0].__name__)
+            width = 80
+            print("\033[93m"+f"Exception occurred while running on file {fname}"+"\033[0m",
+                  end='\n\n')
+            print("\033[91m" +
+                  "\n".join(textwrap.wrap(str(sys.exc_info()[1]),
+                                          width=width - len(ex_name+": "),
+                                          initial_indent=ex_name+": ",
+                                          subsequent_indent=" "*(len(ex_name+": ")))) +
+                  "\033[0m", end='\n\n')
+            print("\033[93m"+"File will be skipped for now."+"\033[0m")
+            if i != num_files and num_files != 1:
+                on_err = input(f"{(num_files-i)} files remaining in queue. Continue? ([y], n) ")
+                if 'n' in on_err.lower():
+                    print("Aborting...")
+                    sys.exit()
+            else:
+                print("No remaining files to read. Aborting...")
+        finally:
+            print("\n{:=^70}\n".format(""))
