@@ -4,7 +4,7 @@ This repository contains Python code that takes paleomagnetic core orientation d
 
 ## How to use the code
 - Download the [ZIP of this repository](https://github.com/Swanson-Hysell-Group/SAM_Header/archive/master.zip)
-- Enter data into the spreadsheet template (sam_sample_template.xlsx or sam_sample_template.csv) and then save as a csv. 
+- Enter data into the spreadsheet template (sam_sample_template.xlsx or sam_sample_template.csv) and then save as a csv.
 - At the command line, navigate into the folder with the program and template. Run the python script `mk_sam_file.py`, specifying the name of the .csv file created from the template.
 
     ```bash
@@ -41,7 +41,7 @@ Rows 8 and onward are sample information. These following values pertain to the 
 - *bedding_dip* is the dip of the bedding. This value will be used for tilt-correcting the data.
 - *mass* is the mass of the specimen in grams. If you do not wish to enter mass data, enter 1.0 for each specimen.
 
-## Optional sample fields: 
+## Optional sample fields:
 
 - *correct_bedding_using_local_dec* This field should either be 'yes' or 'no'. If 'yes' ['yes' is the default if the field is left blank which is why this field is optional] the local calculated IGRF declination will be used to correct the bedding strike. If 'no', the bedding strike will be left uncorrected.
 - *shadow_angle* is the angle read from a sun compass. The code processes these data using the convention of a counter-clockwise sun compass (the type used on a Pomeroy orienting fixture). If a clockwise sun compass is used instead (we use these in our lab for block sampling), then the data need to be transformed to be counter-clockwise upon entry.

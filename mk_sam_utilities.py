@@ -297,7 +297,6 @@ def sundec(sundata):
       the declination of the desired direction wrt true north.
     """
     rad = numpy.pi/180.
-    iday = 0
     timedate = sundata["date"]
     timedate = timedate.split(":")
     year = int(timedate[0])
@@ -577,7 +576,7 @@ class Logger(object):
             self.clr.disable()
         self.quiet = quiet
         self.terminal = sys.stdout
-        self.log = open("mk_sam.log", "w+")
+        self.log = open("mk_sam.log", "a+")
         self.log.write('{:-^70}\n'.format('  Started at {}  '.format(time.asctime())))
 
     def write(self, message):
@@ -691,7 +690,6 @@ def fix_excess_cols(file_name):
     csv_file = pd.read_csv(file_name, header=None)
     csv_file.dropna(1, 'all', inplace=True)
     csv_file.to_csv(file_name, index=False, header=False)
-    return True
 
 
 # this does not seem to be much of an issue anymore as every 'read' tool we are

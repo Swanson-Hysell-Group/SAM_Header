@@ -3,8 +3,6 @@
 import os
 import sys
 import textwrap
-import traceback
-from shutil import copy
 import re
 import math
 import numpy as np
@@ -75,7 +73,7 @@ def main(csv_file, output_directory):
     #                         Find Calculated Values                          #
     ###########################################################################
 
-    print('{:-^70}'.format('LOCAL MAGNETIC DECLINATION'),end='\n')
+    print('{:-^70}'.format('LOCAL MAGNETIC DECLINATION'), end='\n')
     # calculate sun_core_strike for all samples
     for sample in samples:
         if (not sdf[sample].isnull().any()):
@@ -166,9 +164,9 @@ def main(csv_file, output_directory):
               end='\n\n')
     print('Site averages:')
     igrf_msg = "    Average of local IGRF declination is:"
-    print("{}{:>{width}}".format(igrf_msg,
-                                     "{:+07.2f}".format(df.transpose()['IGRF_local_dec'].mean()),
-                                     width=60-len(igrf_msg)))
+    print("{}{:>{width}}".format(igrf_msg, "{:+07.2f}".format(
+        df.transpose()['IGRF_local_dec'].mean()),
+                                 width=60-len(igrf_msg)))
     # read mag decs as numeric; values of 'insufficient data' become NaN
     mag_decs = pd.to_numeric(df.transpose().calculated_mag_dec, errors='coerce')
     if pd.notna(mag_decs.mean()):  # skip this if all values are NaN
@@ -176,7 +174,7 @@ def main(csv_file, output_directory):
                           "(N={:d}):".format(mag_decs.count()))
         print("{}{:>{width}}".format(mag_dec_msg,
                                      "{:+07.2f}".format(mag_decs.mean()),
-                                         width=60-len(mag_dec_msg)))
+                                     width=60-len(mag_dec_msg)))
 
     print("\n{:-^70}".format("OUTPUT"))
 
@@ -541,3 +539,4 @@ if __name__ == "__main__":
                     print("No remaining files to read. Aborting...")
             finally:
                 print("\n{:=^70}\n".format(""))
+                print("All warnings/errors have been written to mk_sam.log.")
