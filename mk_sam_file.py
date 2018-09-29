@@ -281,8 +281,13 @@ def main(csv_file, output_directory):
             if type(df[sample][attribute]) == float and math.isnan(df[sample][attribute]):
                 if attribute == 'mass':
                     df[sample][attribute] = '1.0'
-                    print(
-                        "no mass found for sample %s, setting to default = 1.0 g" % (sample))
+                    print("no mass found for sample %s, setting to default = 1.0 g" % (sample))
+                elif attribute == 'bedding_strike':
+                    df[sample][attribute] = '0.0'
+                    print("no bedding strike found for sample %s, setting to default = 0.0" % (sample))
+                elif attribute == 'bedding_dip':
+                    df[sample][attribute] = '0.0'
+                    print("no bedding dip found for sample %s, setting to default = 0.0" % (sample))
                 else:
                     df[sample][attribute] = ''
             else:
@@ -356,25 +361,26 @@ def main(csv_file, output_directory):
     generate_inp_file(output_directory, df, hdf)
 
 
-
 def generate_inp_file(od, df, hdf):
-    """
-    DESCRIPTION
-        Uses sample and site DataFrames from mk_sam_file.main function to generate inp file
+    """Uses sample and site DataFrames from mk_sam_file.main function to generate inp file
 
-        @param: od - output directory
-        @param: df - sample Dataframe
-        @param: hdf - site DataFrame
+    Parameters
+    ----------
+    od : output directory
+    df : sample Dataframe
+    hdf : site Dataframe
 
-    OUTPUT
-        .inp file
+    Returns
+    -------
+    .inp file
 
     """
 
     # initialize inp file
     inps = ""
     inps += "CIT\n"
-    inps += "sam_path\tfield_magic_codes\tlocation\tnaming_convention\tnum_terminal_char\tdont_average_replicate_measurements\tpeak_AF\ttime_stamp\n"
+    inps += ("sam_path\tfield_magic_codes\tlocation\tnaming_convention\tnum_terminal_char" +
+             "\tdont_average_replicate_measurements\tpeak_AF\ttime_stamp\n")
     inps += (os.path.join('.', hdf['site_info']['site_id'] + '.sam')) + '\t'
     if all(df.T['comment'] == 'sun compass orientation'):
         inps += 'SO-SUN\t'
@@ -491,7 +497,7 @@ if __name__ == "__main__":
 
     # revert to short output if more than 10 files; this is pretty arbitrary
     # though...the main functionality of 'quiet' is really just to provide a
-    # less cluttered display with a cool progress bar
+    # less cluttered display with a fancy progress bar
     silenced = ((num_files > 10 or args['quiet']) and not args['verbose'])
 
     # now run all files through the main program
