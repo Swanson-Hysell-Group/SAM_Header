@@ -46,6 +46,7 @@ Rows 8 and onward are sample information. These following values pertain to the 
 - **Decide whether or not bedding orientations need to be corrected for the local magnetic declination:** Bedding orientation should be entered as strike and dip collected using the right-hand rule. The column 'correct_bedding_using_local_dec' takes either 'yes' or 'no'. If 'yes' the local calculated IGRF declination will be used to correct the bedding strike. If 'no', the bedding strike will be left uncorrected.
 - **Recognize that the program assumes counter-clockwise sun compass data:** see explanation in the *shadow_angle* entry above.
 - **Make sure that the GMT_offset is the hours to subtract from local time to get to GMT:** see explanation in the *shadow_angle* entry above.
+- **To run in the RAPID software these files need to be a folder that corresponds to the site name** The RAPID software will not recognize the .sam if it is not in a folder with the same name.
 
 ## Dependencies
 
