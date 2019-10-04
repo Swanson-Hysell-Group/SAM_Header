@@ -1,11 +1,11 @@
 # .SAM file creation in Python
 
-This repository contains Python code that takes paleomagnetic core orientation data from a .csv template and converts into the .sam format. This file format is used by the RAPID paleomag software (http://sourceforge.net/projects/paleomag/) that is used to generate paleomagnetic and rock magnetic data with 2G Enterprise superconducting rock magnetometers.
+This repository contains Python code that takes paleomagnetic core orientation data from a .csv template and converts into the .sam format. This file format is used by the RAPID paleomag software (http://sourceforge.net/projects/paleomag/) to generate paleomagnetic and rock magnetic data with 2G Enterprise superconducting rock magnetometers.
 
 ## How to use the code:
 
 - Download the [zip of this repository](https://github.com/Swanson-Hysell-Group/SAM_Header/archive/master.zip)
-- Enter data into the spreadsheet template (sam_sample_template.xlsx or sam_sample_template.csv) and then save as a csv. 
+- Enter data into the spreadsheet template (sam_sample_template.xlsx or sam_sample_template.csv) and then save as a csv.
 - Navigate into the folder with the program and template. Run the python script mk_sam_file.py using command line specifying use of the .csv file you have saved:
 ```bash
 ~/$ python mk_sam_file.py site.csv [optional - output_path]
@@ -32,7 +32,7 @@ Rows 8 and onward are sample information. These following values pertain to the 
 - *bedding_dip* is the dip of the bedding. This value will be used for tilt-correcting the data.
 - *mass* is the mass of the specimen in grams. If you do not wish to enter mass data, enter 1.0 for each specimen.
 
-## Optional sample fields: 
+## Optional sample fields:
 
 - *correct_bedding_using_local_dec* This field should either be 'yes' or 'no'. If 'yes' ['yes' is the default if the field is left blank which is why this field is optional] the local calculated IGRF declination will be used to correct the bedding strike. If 'no', the bedding strike will be left uncorrected.
 - *shadow_angle* is the angle read from a sun compass. The code processes these data using the convention of a counter-clockwise sun compass (the type used on a Pomeroy orienting fixture). If a clockwise sun compass is used instead (we use these in our lab for block sampling), then the data need to be transformed to be counter-clockwise upon entry.
