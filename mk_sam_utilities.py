@@ -2,7 +2,7 @@ import sys
 import numpy.linalg
 import time
 from datetime import datetime as dt
-
+import numpy as np
 
 def igrf(input_list):
     """
@@ -19,86 +19,161 @@ def igrf(input_list):
     return Dir
 
 
-def doigrf(long, lat, alt, date, **kwargs):
+def doigrf(lon, lat, alt, date, **kwargs):
     """
-    called with doigrf(long,lat,alt,date,**kwargs) calculates the interpolated
-    (<2010) or extrapolated (>2010) main field and secular variation
-    coefficients and passes these to the Malin and Barraclough routine to
-    calculate the IGRF field. dgrf coefficients for 1945 to 2005, igrf for pre
-    1945 and post 2010 from http://www.ngdc.noaa.gov/IAGA/vmod/igrf.html
+    Calculates the interpolated (<2015) or extrapolated (>2015) main field and
+    secular variation coefficients and passes them to the Malin and Barraclough
+    routine (function pmag.magsyn) to calculate the field from the coefficients.
 
-    for dates prior to between 1900 and 1600, this program uses coefficients
-    from the GUFM1 model of Jackson et al. 2000 prior to that, it uses either
-    arch3k or one of the cals models
+    Parameters:
+    -----------
+    lon  : east longitude in degrees (0 to 360 or -180 to 180)
+    lat   : latitude in degrees (-90 to 90)
+    alt   : height above mean sea level in km (itype = 1 assumed)
+    date  : Required date in years and decimals of a year (A.D.)
 
-    input:
-       long  = east longitude in degrees (0 to 360 or -180 to 180)
-       lat   = latitude in degrees (-90 to 90)
-       alt   = height above mean sea level in km (itype = 1 assumed)
-       date  = Required date in years and decimals of a year (A.D.)
-    output:
-       x     = north component of the magnetic force in nT
-       y     = east component of the magnetic force in nT
-       z     = downward component of the magnetic force in nT
-       f     = total magnetic force in nT
+    Optional Parameters:
+    -----------
+    coeffs : if True, then return the gh coefficients
+    mod  : model to use ('arch3k','cals3k','pfm9k','hfm10k','cals10k.2','cals10k.1b','shadif14k','shawq2k','shawqIA')
+        arch3k (Korte et al., 2009)
+        cals3k (Korte and Constable, 2011)
+        cals10k.1b (Korte et al., 2011)
+        pfm9k  (Nilsson et al., 2014)
+        hfm.OL1.A1 (Constable et al., 2016)
+        cals10k.2 (Constable et al., 2016)
+        shadif14k (Pavon-Carrasco et al., 2014)
+        shawq2k (Campuzano et al., 2019)
+        shawqIA (Osete et al., 2020)
+          NB : the first four of these models, are constrained to agree
+               with gufm1 (Jackson et al., 2000) for the past four centuries
+    Return
+    -----------
+    x : north component of the magnetic field in nT
+    y : east component of the magnetic field in nT
+    z : downward component of the magnetic field in nT
+    f : total magnetic field in nT
+
+    By default, igrf13 coefficients are used between 1900 and 2020
+    from http://www.ngdc.noaa.gov/IAGA/vmod/igrf.html.
+
 
     To check the results you can run the interactive program at the NGDC
-    http://www.ngdc.noaa.gov/geomagmodels/IGRFWMM.jsp
+    www.ngdc.noaa.gov/geomag-web
     """
     import coefficients as cf
     gh, sv = [], []
-    colat = 90.-lat
-    # convert to colatitude for MB routine
-    if long > 0:
-        long = long+360.
-    # ensure all positive east longitudes
+    colat = 90. - lat
+#! convert to colatitude for MB routine
+    if lon < 0:
+        lon = lon + 360.
+# ensure all positive east longitudes
     itype = 1
-    models, igrf12coeffs = cf.get_igrf12()
-    if 'mod' in kwargs.keys():
+    models, igrf13coeffs = cf.get_igrf13()
+    #models, igrf12coeffs = cf.get_igrf12()
+    if 'mod' in list(kwargs.keys()):
         if kwargs['mod'] == 'arch3k':
             psvmodels, psvcoeffs = cf.get_arch3k()  # use ARCH3k coefficients
         elif kwargs['mod'] == 'cals3k':
-            # default: use CALS3K_4b coefficients between -1000,1900
+            # use CALS3K_4b coefficients between -1000,1940
             psvmodels, psvcoeffs = cf.get_cals3k()
+        elif kwargs['mod'] == 'pfm9k':
+            # use PFM9k (Nilsson et al., 2014), coefficients from -7000 to 1900
+            psvmodels, psvcoeffs = cf.get_pfm9k()
+        elif kwargs['mod'] == 'hfm10k':
+            # use HFM.OL1.A1 (Constable et al., 2016), coefficients from -8000
+            # to 1900
+            psvmodels, psvcoeffs = cf.get_hfm10k()
+        elif kwargs['mod'] == 'cals10k.2':
+            # use CALS10k.2 (Constable et al., 2016), coefficients from -8000
+            # to 1900
+            psvmodels, psvcoeffs = cf.get_cals10k_2()
+        elif kwargs['mod'] == 'shadif14k':
+            # use CALS10k.2 (Constable et al., 2016), coefficients from -8000
+            # to 1900
+            psvmodels, psvcoeffs = cf.get_shadif14k()
+        elif kwargs['mod'] == 'shawq2k':
+            psvmodels, psvcoeffs = cf.get_shawq2k()
+        elif kwargs['mod'] == 'shawqIA':
+            psvmodels, psvcoeffs = cf.get_shawqIA()
         else:
-            psvmodels, psvcoeffs = cf.get_cals10k()  # use prior to -1000
-    # use geodetic coordinates
+            # Korte and Constable, 2011;  use prior to -1000, back to -8000
+            psvmodels, psvcoeffs = cf.get_cals10k()
+# use geodetic coordinates
     if 'models' in kwargs:
-        if 'mod' in kwargs.keys():
+        if 'mod' in list(kwargs.keys()):
             return psvmodels, psvcoeffs
         else:
-            return models, igrf12coeffs
-    if date < -8000:
+            return models, igrf13coeffs
+    if date < -12000:
         print('too old')
-        sys.exit()
-    if date < -1000:
-        model = date-date % 50
-        gh = psvcoeffs[psvcoeffs.index(model)]
-        sv = (psvcoeffs[psvmodels.index(model+50)]-gh)/50.
-        x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, long)
+        return
+    if 'mod' in list(kwargs.keys()) and kwargs['mod'] == 'shadif14k':
+        if date < -10000:
+            incr = 100
+        else:
+            incr = 50
+        model = date - date % incr
+        gh = psvcoeffs[psvmodels.index(int(model))]
+        sv = (psvcoeffs[psvmodels.index(int(model + incr))] - gh)/ float(incr)
+        x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
+    elif date < -1000:
+        incr = 10
+        model = date - date % incr
+        gh = psvcoeffs[psvmodels.index(int(model))]
+        sv = (psvcoeffs[psvmodels.index(int(model + incr))] - gh)/float(incr)
+        x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
     elif date < 1900:
-        model = date-date % 50
+        if kwargs['mod'] == 'cals10k':
+            incr = 50
+        elif kwargs['mod'] == 'shawq2k' or kwargs['mod']=='shawqIA':
+            incr = 25
+        else:
+            incr = 10
+        model = int(date - date % incr)
         gh = psvcoeffs[psvmodels.index(model)]
-        if model+50 < 1900:
-            sv = (psvcoeffs[psvmodels.index(model+50)]-gh)/50.
+        if model + incr < 1900:
+            sv = (psvcoeffs[psvmodels.index(model + incr)] - gh)/float(incr)
         else:
-            field2 = igrf12coeffs[models.index(1900)][0:120]
-            sv = (field2-gh)/float(1900-model)
-        x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, long)
+            field2 = igrf13coeffs[models.index(1940)][0:120]
+            sv = (field2 - gh)/float(1940 - model)
+        x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
     else:
-        model = date-date % 5
-        if date < 2015:
-            gh = igrf12coeffs[models.index(model)]
-            sv = (igrf12coeffs[models.index(model+5)]-gh)/5.
-            x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, long)
+        model = date - date % 5
+        if date <2020:
+            gh = np.array(igrf13coeffs[models.index(model)])
+            sv = (np.array(igrf13coeffs[models.index(model + 5)]) - gh)/5.
+            x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
         else:
-            gh = igrf12coeffs[models.index(2015)]
-            sv = igrf12coeffs[models.index(2015.20)]
-            x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, long)
-    if 'coeffs' in kwargs.keys():
+            gh = igrf13coeffs[models.index(2020)]
+            sv = np.array(igrf13coeffs[models.index(2020.2)])
+            x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
+    if 'coeffs' in list(kwargs.keys()):
         return gh
-    else:
-        return x, y, z, f
+        #model = date - date % incr
+        #gh = psvcoeffs[psvmodels.index(model)]
+        #if model + incr < 1900:
+        #    sv = (psvcoeffs[psvmodels.index(model + incr)] - gh)/float(incr)
+        #else:
+        #    field2 = igrf13coeffs[models.index(1940)][0:120]
+        #    sv = (field2 - gh)/float(1940 - model)
+        #x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
+    #else:
+    #    model = date - date % 5
+    #    if date <2020:
+    #        gh = np.array(igrf13coeffs[models.index(model)])
+    #        sv = (np.array(igrf13coeffs[models.index(model + 5)]) - gh)/5.
+    #        x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
+    #    else:
+    #        gh = igrf13coeffs[models.index(2020)]
+    #        sv = np.array(igrf13coeffs[models.index(2020.2)])
+    #        x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
+    #if 'coeffs' in list(kwargs.keys()):
+    #    return gh
+    #else:
+    #    return x, y, z, f
+    return x, y, z, f
+#
 
 
 def unpack(gh):
