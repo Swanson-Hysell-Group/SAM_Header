@@ -206,8 +206,13 @@ def main():
             df[sample]['correct_bedding_using_local_dec'] = 'yes'
         if not math.isnan(df[sample]['IGRF_local_dec']):
             if math.isnan(df[sample]['sun_core_strike']):
-                df[sample]['core_strike'] = (float(df[sample]['magnetic_core_strike']) +
-                                             float(df[sample]['IGRF_local_dec']))
+                if (float(df[sample]['magnetic_core_strike']) +
+                                             float(df[sample]['IGRF_local_dec'])) < 0:
+                    df[sample]['core_strike'] = (float(df[sample]['magnetic_core_strike']) +
+                                                 float(df[sample]['IGRF_local_dec'])) + 360
+                else:
+                    df[sample]['core_strike'] = (float(df[sample]['magnetic_core_strike']) +
+                                                 float(df[sample]['IGRF_local_dec']))
                 df[sample]['comment'] = 'mag compass orientation (IGRF corrected)'
             else:
                 df[sample]['core_strike'] = float(df[sample]['sun_core_strike'])
