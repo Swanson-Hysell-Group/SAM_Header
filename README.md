@@ -6,7 +6,7 @@ This repository contains Python code that takes paleomagnetic core orientation d
 
 - Download the [zip of this repository](https://github.com/Swanson-Hysell-Group/SAM_Header/archive/master.zip)
 - Enter data into the spreadsheet template (sam_sample_template.xlsx or sam_sample_template.csv) and then save as a csv.
-- Navigate into the folder with the program and template. Run the python script mk_sam_file.py using command line specifying use of the .csv file you have saved:
+- Navigate into the folder with the program and template. Run the python script mk_sam_file.py using command line specifying use of the .csv file you have saved (replacing ```site.csv``` in the code below):
 ```bash
 ~/$ python mk_sam_file.py site.csv [optional - output_path]
 ```
