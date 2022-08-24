@@ -230,7 +230,7 @@ def main():
         if type(comment) == float and math.isnan(comment):
             comment = ''
 
-        # insure input is valid
+        # ensure input is valid
         assert (len(site_id) <= 5),\
             "Locality ID exceeds 5 characters: refer to:"\
             "http://cires.colorado.edu/people/jones.craig/PMag_Formats.html "\
@@ -265,14 +265,15 @@ def main():
                     not math.isnan(df[sample]['corrected_bedding_strike']):
                 attribute = 'corrected_bedding_strike'
 
- #           if type(df[sample][attribute]) == float and math.isnan(df[sample][attribute]):
-            if attribute == 'mass':
-                if math.isnan(df[sample][attribute]):
+            if type(df[sample][attribute]) == float and math.isnan(df[sample][attribute]):
+                if attribute == 'mass':
                     df[sample][attribute] = '1.0'
                     print(
                         "no mass found for sample %s, setting to default = 1.0 g" % (sample))
                 else:
-                    df[sample][attribute] = str(round(float(df[sample][attribute]), 2))
+                    df[sample][attribute] = ''
+            else:
+                df[sample][attribute] = str(round(float(df[sample][attribute]), 1))
 
             # attributes must follow standard sam format
             assert (len(df[sample][attribute]) <= 5),\
