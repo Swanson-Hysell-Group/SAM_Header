@@ -232,14 +232,14 @@ def main():
 
         # insure input is valid
         assert (len(site_id) <= 5),\
-            "Locality ID excedes 5 characters: refer too "\
+            "Locality ID exceeds 5 characters: refer to:"\
             "http://cires.colorado.edu/people/jones.craig/PMag_Formats.html "\
             "(although that says that 4 is the limit)"
         assert (len(comment) <= 255),\
-            "Sample comment excedes 255 characters: refer too "\
+            "Sample comment exceeds 255 characters: refer to:"\
             "http://cires.colorado.edu/people/jones.craig/PMag_Formats.html"
         assert (len(str(sample)) <= 9),\
-            "Sample name excedes 9 characters: refer too "\
+            "Sample name exceeds 9 characters: refer to:"\
             "http://cires.colorado.edu/people/jones.craig/PMag_Formats.html"
 
         # write sample name and comment for sample file
@@ -250,7 +250,7 @@ def main():
             df[sample]['strat_level'] = "     0"
         df[sample]['strat_level'] = str((df[sample]['strat_level']))
         assert (len(df[sample]['strat_level']) <= 6),\
-            "Length of strat_level excedes 6 characters: refer too "\
+            "Length of strat_level exceeds 6 characters: refer too "\
             "http://cires.colorado.edu/people/jones.craig/PMag_Formats.html"
         new_file += ' ' + ' '*(6-len(df[sample]['strat_level'])) + df[sample]['strat_level']
 
@@ -265,20 +265,19 @@ def main():
                     not math.isnan(df[sample]['corrected_bedding_strike']):
                 attribute = 'corrected_bedding_strike'
 
-            if type(df[sample][attribute]) == float and math.isnan(df[sample][attribute]):
-                if attribute == 'mass':
+ #           if type(df[sample][attribute]) == float and math.isnan(df[sample][attribute]):
+            if attribute == 'mass':
+                if math.isnan(df[sample][attribute]):
                     df[sample][attribute] = '1.0'
                     print(
                         "no mass found for sample %s, setting to default = 1.0 g" % (sample))
                 else:
-                    df[sample][attribute] = ''
-            else:
-                df[sample][attribute] = str(round(float(df[sample][attribute]), 1))
+                    df[sample][attribute] = str(round(float(df[sample][attribute]), 2))
 
             # attributes must follow standard sam format
             assert (len(df[sample][attribute]) <= 5),\
                 "Length of " + attribute + \
-                " excedes 5 characters: refer too " + \
+                " exceeds 5 characters: refer too " + \
                 "http://cires.colorado.edu/people/jones.craig/PMag_Formats.html"
 
             new_file += ' ' + ' '*(5-len(df[sample][attribute])) + df[sample][attribute]
