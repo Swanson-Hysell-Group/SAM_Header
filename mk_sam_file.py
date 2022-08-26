@@ -250,7 +250,7 @@ def main():
             df[sample]['strat_level'] = "     0"
         df[sample]['strat_level'] = str((df[sample]['strat_level']))
         assert (len(df[sample]['strat_level']) <= 6),\
-            "Length of strat_level exceeds 6 characters: refer too "\
+            "Length of strat_level exceeds 6 characters: refer to:"\
             "http://cires.colorado.edu/people/jones.craig/PMag_Formats.html"
         new_file += ' ' + ' '*(6-len(df[sample]['strat_level'])) + df[sample]['strat_level']
 
@@ -278,7 +278,7 @@ def main():
             # attributes must follow standard sam format
             assert (len(df[sample][attribute]) <= 5),\
                 "Length of " + attribute + \
-                " exceeds 5 characters: refer too " + \
+                " exceeds 5 characters: refer to:" + \
                 "http://cires.colorado.edu/people/jones.craig/PMag_Formats.html"
 
             new_file += ' ' + ' '*(5-len(df[sample][attribute])) + df[sample][attribute]
