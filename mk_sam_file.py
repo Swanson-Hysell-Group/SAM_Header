@@ -169,10 +169,12 @@ def main():
     # creating long lat and dec info
     for value in site_values:
         hdf['site_info'][value] = str(round(float(hdf['site_info'][value]), 1))
+        # format latitude values
         if value == 'site_lat':
             sam_header += ' ' + hdf['site_info'][value]
-        else:
-            sam_header += ' '*(5-len(hdf['site_info'][value]) + 1) + hdf['site_info'][value]
+            # format longitude values and force to 0-360
+        if value == 'site_long':
+            sam_header += ' {:05.1f}'.format(float(hdf['site_info'][value])%360)
     sam_header += ' '*(3) + '0.0'
     sam_header += '\r\n'
 
@@ -258,6 +260,11 @@ def main():
         for attribute in attributes:
             # assert (str(df[sample][attribute]).isdigit()),\
             #         str( attribute) + ' is a requred numeric value'
+            # set default bedding strike and dip to 0 if user did not supply
+            if (attribute =='bedding_strike') and (math.isnan(float(df[sample][attribute]))):
+                df[sample][attribute] = 0.0
+            if (attribute =='bedding_dip') and (math.isnan(float(df[sample][attribute]))):
+                df[sample][attribute] = 0.0
             if attribute == 'bedding_strike' and \
                         ((df[sample]['correct_bedding_using_local_dec']) == 'yes' or
                          (df[sample]['correct_bedding_using_local_dec']) == 'Yes' or
