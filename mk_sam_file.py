@@ -262,7 +262,7 @@ def main():
             #         str( attribute) + ' is a requred numeric value'
             # set default bedding strike and dip to 0 if user did not supply
             if (attribute =='bedding_strike') and (math.isnan(float(df[sample][attribute]))):
-                df[sample][attribute] = 0.0
+                df[sample][attribute] = 90.0
             if (attribute =='bedding_dip') and (math.isnan(float(df[sample][attribute]))):
                 df[sample][attribute] = 0.0
             if attribute == 'bedding_strike' and \
