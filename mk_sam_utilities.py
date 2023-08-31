@@ -934,6 +934,8 @@ def sundec(sundata):
     beta = numpy.cos(delta)*numpy.sin(H)/numpy.sin(theta)
     # check which beta
     beta = numpy.arcsin(beta)/rad
+    if delta < lat:
+        beta = 180-beta
     sunaz = 180-beta
     suncor = (sunaz+float(sundata["shadow_angle"])) % 360.  # mod 360
     return suncor
