@@ -307,7 +307,7 @@ def main():
     #                        Write New Values to .csv                         #
     ###########################################################################
 
-    csv_file = open(file_name, 'rU')
+    csv_file = open(file_name, newline='')
     csv_str = ''
 
     for i in range(5):
