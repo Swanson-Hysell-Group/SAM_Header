@@ -164,7 +164,7 @@ def main():
     ###########################################################################
 
     # setting name
-    sam_header = hdf['site_info']['site_name'] + '\r\n'
+    sam_header = hdf['site_info']['site_name'] + '\n'
 
     # creating long lat and dec info
     for value in site_values:
@@ -176,11 +176,11 @@ def main():
         if value == 'site_long':
             sam_header += ' {:05.1f}'.format(float(hdf['site_info'][value])%360)
     sam_header += ' '*(3) + '0.0'
-    sam_header += '\r\n'
+    sam_header += '\n'
 
     # making writing sample info
     for sample in samples:
-        sam_header += hdf['site_info']['site_id'] + str(sample) + '\r\n'
+        sam_header += hdf['site_info']['site_id'] + str(sample) + '\n'
 
     # creating and writing file
     print('Writing file - ' + os.path.join(output_directory, hdf['site_info']['site_id'] + '.sam'))
@@ -245,7 +245,7 @@ def main():
             "http://cires.colorado.edu/people/jones.craig/PMag_Formats.html"
 
         # write sample name and comment for sample file
-        new_file = site_id + ' ' + str(sample) + ' ' + comment + '\r\n'
+        new_file = site_id + ' ' + str(sample) + ' ' + comment + '\n'
 
         # start second line strat_level get's special treatment
         if (math.isnan(float(df[sample]['strat_level']))):
@@ -297,7 +297,7 @@ def main():
             new_file += run + '\r\n'
 
         # create and write sample file
-        new_file = new_file.rstrip('\r\n') + '\r\n'
+        new_file = new_file.rstrip('\r\n') + '\n'
         print('Writing file - ' + os.path.join(output_directory, site_id + str(sample)))
         sample_file = open(os.path.join(output_directory, site_id + str(sample)), 'w+')
         sample_file.write(new_file)
@@ -311,8 +311,8 @@ def main():
     csv_str = ''
 
     for i in range(5):
-        csv_str += csv_file.readline()
-
+        csv_str += csv_file.readline().rstrip('\n')
+        
     comma_count = csv_file.readline().count(',')
     csv_str += 'site_elevation' + ',' + \
                str(hdf['site_info']['site_elevation']) + ','*(comma_count-1) + '\n'
@@ -320,7 +320,7 @@ def main():
     # elev_line[1] = str(hdf['site_info']['site_elevation'])
     # reduce(lambda x,y: x + ',' + y, elev_line)
 
-    header = csv_file.readline()
+    header = csv_file.readline().rstrip('\n')
     csv_str += header
     header = header.strip('\r\n').split(',')
 
@@ -341,7 +341,7 @@ def main():
                 items[i] = str(sdf[sample][header[i]])
             else:
                 raise KeyError('there is no item: ' + header[i])
-        csv_str += reduce(lambda x, y: x + ',' + y, items) + '\r\n'
+        csv_str += reduce(lambda x, y: x + ',' + y, items) + '\n'
 
     print('Writing file - ' + os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'))
     new_csv_file = open(os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'), 'w+')
