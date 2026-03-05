@@ -290,14 +290,14 @@ def main():
 
             new_file += ' ' + ' '*(5-len(df[sample][attribute])) + df[sample][attribute]
 
-        new_file += '\r\n'
+        new_file += '\n'
 
         # if there are previous sample runs write that to the bottem of the file
         for run in runs:
-            new_file += run + '\r\n'
+            new_file += run + '\n'
 
         # create and write sample file
-        new_file = new_file.rstrip('\r\n') + '\n'
+        new_file = new_file.rstrip('\n') + '\n'
         print('Writing file - ' + os.path.join(output_directory, site_id + str(sample)))
         sample_file = open(os.path.join(output_directory, site_id + str(sample)), 'w+')
         sample_file.write(new_file)
@@ -311,7 +311,7 @@ def main():
     csv_str = ''
 
     for i in range(5):
-        csv_str += csv_file.readline().rstrip('\n')
+        csv_str += csv_file.readline().rstrip('\n') + '\n'
 
     comma_count = csv_file.readline().count(',')
     csv_str += 'site_elevation' + ',' + \
@@ -321,7 +321,7 @@ def main():
     # reduce(lambda x,y: x + ',' + y, elev_line)
 
     header = csv_file.readline().rstrip('\n')
-    csv_str += header
+    csv_str += header + '\n'
     header = header.strip('\r\n').split(',')
 
     for sample in samples:
@@ -352,8 +352,8 @@ def main():
 
 
 def fix_line_breaks():
-    """ Reads in the file given as a command line argument and rewrites it both line
-        break types '\ r' and '\ n' so that python will for sure register all lines
+    """ Reads in the file given as a command line argument and rewrites it with both line
+        break types '\\r' and '\\n' so that python will for sure register all lines
     """
     file_name = sys.argv[1]
     # fix line breaks between different OS and python's default
