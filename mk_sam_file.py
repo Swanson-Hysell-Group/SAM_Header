@@ -311,7 +311,7 @@ def main():
     csv_str = ''
 
     for i in range(5):
-        csv_str += csv_file.readline().rstrip('\n') + '\n'
+        csv_str += csv_file.readline().rstrip('\r\n')+'\n'
 
     comma_count = csv_file.readline().count(',')
     csv_str += 'site_elevation' + ',' + \
@@ -320,8 +320,8 @@ def main():
     # elev_line[1] = str(hdf['site_info']['site_elevation'])
     # reduce(lambda x,y: x + ',' + y, elev_line)
 
-    header = csv_file.readline().rstrip('\n')
-    csv_str += header + '\n'
+    header = csv_file.readline().rstrip('\r\n')+'\n'
+    csv_str += header 
     header = header.strip('\r\n').split(',')
 
     for sample in samples:
