@@ -1,0 +1,5 @@
+numpy
+pandas
+PyInstaller
+PySide6
+scipy
