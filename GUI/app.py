@@ -36,7 +36,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
+def _runtime_root() -> Path:
+    if getattr(sys, 'frozen', False):
+        meipass = getattr(sys, '_MEIPASS', None)
+        if meipass:
+            return Path(meipass)
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[1]
+
+
+ROOT = _runtime_root()
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -87,6 +96,8 @@ def correct_block_orientations(sample_df, reverse_sun=False, add_90=False, apply
     return pd.DataFrame(out)
 
 APP_ICON = ROOT / 'GUI' / 'assets' / 'sam_header_icon.svg'
+if not APP_ICON.exists():
+    APP_ICON = ROOT / 'assets' / 'sam_header_icon.svg'
 
 
 def _format_pair(row: pd.Series, strike_key: str, dip_key: str) -> str:

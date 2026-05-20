@@ -13,7 +13,9 @@ Use that document for:
 Quick commands from the repository root:
 
 ```bash
-python -m pip install -r GUI/requirements.txt
+python -m pip install -r GUI/requirements-build.txt
 python GUI/main.py
 python GUI/build.py
 ```
+
+`GUI/requirements-build.txt` contains the tested package versions used for local PyInstaller builds in this repository.

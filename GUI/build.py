@@ -1,29 +1,26 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import PyInstaller.__main__
 
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / 'GUI' / 'app.py'
+SPEC = ROOT / 'GUI' / 'SAMHeaderBuilder.spec'
 
 
 def main() -> None:
+    os.chdir(ROOT)
     PyInstaller.__main__.run(
         [
             '--noconfirm',
             '--clean',
-            '--windowed',
-            '--name',
-            'SAMHeaderBuilder',
             '--distpath',
             str(ROOT / 'GUI' / 'dist'),
             '--workpath',
             str(ROOT / 'GUI' / 'build'),
-            '--specpath',
-            str(ROOT / 'GUI'),
-            str(APP),
+            str(SPEC),
         ]
     )
 

@@ -66,6 +66,12 @@ python -m pip install --upgrade pip
 python -m pip install -r GUI/requirements.txt
 ```
 
+For reproducible local packaging with the tested versions in this repository, use:
+
+```bash
+python -m pip install -r GUI/requirements-build.txt
+```
+
 ### 3. Launch the desktop app
 
 ```bash
@@ -276,10 +282,29 @@ PyInstaller build:
 python GUI/build.py
 ```
 
+The repository includes a checked-in PyInstaller spec at [GUI/SAMHeaderBuilder.spec](GUI/SAMHeaderBuilder.spec). The build script in [GUI/build.py](GUI/build.py) now uses that spec directly so local builds share the same configuration.
+
 Outputs:
 
 - bundled app files in `GUI/dist`
 - intermediate build files in `GUI/build`
+
+### Local compilation notes
+
+1. Create and activate a local virtual environment.
+2. Install the pinned build environment from `GUI/requirements-build.txt`.
+3. Run `python GUI/build.py` from the repository root.
+4. Open `GUI/dist/SAMHeaderBuilder/` and launch `SAMHeaderBuilder.exe` on Windows.
+
+The checked-in build configuration currently bundles the GUI icon asset so the compiled app can resolve its runtime resources without depending on the source-tree layout.
+
+### Tested local build environment
+
+- `numpy==2.4.6`
+- `pandas==3.0.3`
+- `PyInstaller==6.20.0`
+- `PySide6==6.11.1`
+- `scipy==1.17.1`
 
 ## Troubleshooting
 

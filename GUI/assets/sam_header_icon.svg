@@ -1,26 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#68C9A5"/>
-      <stop offset="55%" stop-color="#2E9A87"/>
-      <stop offset="100%" stop-color="#1C6D7A"/>
-    </linearGradient>
-    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.60"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.10"/>
-    </linearGradient>
-  </defs>
+  <rect x="8" y="8" width="496" height="496" rx="128" fill="#6AA14B"/>
 
-  <rect x="38" y="38" width="436" height="436" rx="108" fill="url(#bg)"/>
-  <rect x="54" y="54" width="404" height="182" rx="80" fill="url(#glass)"/>
+  <rect x="218" y="46" width="18" height="72" rx="4" fill="#F3F1E8"/>
+  <rect x="276" y="46" width="18" height="72" rx="4" fill="#F3F1E8"/>
+  <polygon points="236,46 254,46 276,118 258,118" fill="#F3F1E8"/>
 
-  <circle cx="256" cy="278" r="122" fill="#F4FBF7" fill-opacity="0.92"/>
-  <circle cx="256" cy="278" r="98" fill="none" stroke="#256A73" stroke-width="16"/>
-  <line x1="256" y1="166" x2="256" y2="390" stroke="#256A73" stroke-width="11" stroke-linecap="round"/>
-  <line x1="144" y1="278" x2="368" y2="278" stroke="#256A73" stroke-width="11" stroke-linecap="round"/>
+  <circle cx="256" cy="286" r="136" fill="#E9ECE3" stroke="#191C21" stroke-width="22"/>
+  <circle cx="256" cy="286" r="18" fill="#191C21"/>
 
-  <polygon points="256,156 296,286 256,260 216,286" fill="#FFB76D"/>
-  <polygon points="256,400 216,270 256,296 296,270" fill="#2E9A87"/>
-  <circle cx="256" cy="278" r="18" fill="#FFE8CF" stroke="#256A73" stroke-width="5"/>
+  <line x1="256" y1="166" x2="256" y2="406" stroke="#2A2D32" stroke-width="10" stroke-linecap="round"/>
+  <line x1="136" y1="286" x2="376" y2="286" stroke="#2A2D32" stroke-width="10" stroke-linecap="round"/>
+
+  <line x1="171" y1="201" x2="341" y2="371" stroke="#2A2D32" stroke-width="8" stroke-linecap="round"/>
+  <line x1="341" y1="201" x2="171" y2="371" stroke="#2A2D32" stroke-width="8" stroke-linecap="round"/>
+
+  <polygon points="256,162 295,286 256,260 217,286" fill="#E59B4C" stroke="#191C21" stroke-width="8" stroke-linejoin="round"/>
+  <polygon points="256,410 217,286 256,312 295,286" fill="#2C343D" stroke="#191C21" stroke-width="8" stroke-linejoin="round"/>
+
+  <circle cx="256" cy="286" r="32" fill="#F6F3EA" stroke="#191C21" stroke-width="10"/>
 </svg>

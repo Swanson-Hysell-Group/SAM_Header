@@ -13,4 +13,7 @@ GUI/__pycache__/
 /test_gui_switching.py
 /validate_*.py
 /validation_task.py
+/app.spec
+/build/
+/dist/
 
