@@ -259,15 +259,15 @@ class MainWindow(QMainWindow):
         self.inputs_panel = inputs_panel
         self.preview_panel = preview_panel
         self.options_panel = options_panel
-        top_layout.addWidget(inputs_panel, 4)
-        top_layout.addWidget(preview_panel, 3)
-        top_layout.addWidget(options_panel, 4)
+        top_layout.addWidget(inputs_panel, 3)
+        top_layout.addWidget(preview_panel, 5)
+        top_layout.addWidget(options_panel, 5)
 
         root_layout.addSpacing(14)
 
         table_panel = self._build_table_panel()
         self.table_panel = table_panel
-        root_layout.addWidget(table_panel, 2)
+        root_layout.addWidget(table_panel, 3)
 
         log_panel = self._build_log_panel()
         self.log_panel = log_panel
@@ -297,7 +297,7 @@ class MainWindow(QMainWindow):
         available = screen.availableGeometry()
 
         width = min(1248, available.width() - 24)
-        height = min(760, available.height() - 36)
+        height = min(860, available.height() - 24)
 
         width = max(700, min(width, available.width()))
         height = max(500, min(height, available.height()))
@@ -315,7 +315,7 @@ class MainWindow(QMainWindow):
         frame = self.frameGeometry()
 
         target_frame_w = min(max(frame.width(), int(available.width() * 0.78)), max(200, available.width() - 12))
-        target_frame_h = max(200, int(available.height() * 0.78))
+        target_frame_h = max(200, int(available.height() * 0.84))
 
         frame_margin_w = max(0, frame.width() - self.width())
         frame_margin_h = max(0, frame.height() - self.height())
@@ -353,13 +353,50 @@ class MainWindow(QMainWindow):
             margins.top()
             + margins.bottom()
             + self.hero.sizeHint().height()
-            + self.top_row_container.sizeHint().height()
+            + max(self.top_row_container.sizeHint().height(), self.top_row_container.minimumHeight())
             + self.table_panel.minimumHeight()
             + self.log_panel.minimumHeight()
             + self.footer.sizeHint().height()
             + (spacing * 4)
             + 12
         )
+
+    def _sync_top_row_height(self) -> None:
+        top_row_height = max(
+            self.inputs_panel.sizeHint().height(),
+            self.preview_panel.sizeHint().height(),
+            self.options_panel.sizeHint().height(),
+        )
+        self.top_row_container.setMinimumHeight(top_row_height)
+        self.inputs_panel.setMinimumHeight(top_row_height)
+        self.preview_panel.setMinimumHeight(top_row_height)
+        self.options_panel.setMinimumHeight(top_row_height)
+
+    def _make_button(self, text: str, *, expand: bool = False, compact: bool = False) -> QPushButton:
+        button = QPushButton(text)
+        button_font = button.font()
+        button_font.setPointSize(9 if compact else 10)
+        button_font.setBold(True)
+        button.setFont(button_font)
+        button.setMinimumHeight(28 if compact else 32)
+        if compact:
+            button.setObjectName('CompactButton')
+        button.setSizePolicy(
+            QSizePolicy.Policy.Expanding if expand else QSizePolicy.Policy.Minimum,
+            QSizePolicy.Policy.Fixed,
+        )
+        return button
+
+    def _set_compact_field_height(self, widget: QWidget) -> None:
+        widget.setMinimumHeight(28)
+        widget.setMaximumHeight(28)
+
+    def _create_file_list(self) -> QListWidget:
+        file_list = QListWidget()
+        file_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        file_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        file_list.currentRowChanged.connect(self._switch_preview)
+        return file_list
 
     def _wrap_panel_scroll(self, panel: QWidget) -> QScrollArea:
         scroll = QScrollArea()
@@ -399,8 +436,8 @@ class MainWindow(QMainWindow):
         frame = QFrame()
         frame.setObjectName('PanelCard')
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(8)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(6)
 
         header = QLabel('Inputs')
         header.setObjectName('SectionTitle')
@@ -410,21 +447,23 @@ class MainWindow(QMainWindow):
         grid.setHorizontalSpacing(8)
         grid.setVerticalSpacing(8)
         grid.setColumnStretch(1, 1)   # line-edit column absorbs all flexible space
-        grid.setColumnMinimumWidth(2, 130)  # button column never shrinks below text
 
         self.input_edit = QLineEdit()
         self.input_edit.setReadOnly(True)
         self.output_edit = QLineEdit()
+        self._set_compact_field_height(self.input_edit)
+        self._set_compact_field_height(self.output_edit)
 
         self.mode_combo = QComboBox()
         self.mode_combo.addItem('Core sample workflow', 'core')
         self.mode_combo.addItem('Block sample corrected CSV workflow', 'block')
         self.mode_combo.currentIndexChanged.connect(self._update_current_options)
         self.mode_combo.currentIndexChanged.connect(self._sync_mode_hint)
+        self._set_compact_field_height(self.mode_combo)
 
-        browse_input = QPushButton('Browse CSV Files')
+        browse_input = self._make_button('Browse CSV Files', compact=True)
         browse_input.clicked.connect(self._browse_input)
-        browse_output = QPushButton('Browse Folder')
+        browse_output = self._make_button('Browse Folder', compact=True)
         browse_output.clicked.connect(self._browse_output)
 
         grid.addWidget(QLabel('CSV files'), 0, 0)
@@ -433,34 +472,18 @@ class MainWindow(QMainWindow):
         grid.addWidget(QLabel('Output folder'), 1, 0)
         grid.addWidget(self.output_edit, 1, 1)
         grid.addWidget(browse_output, 1, 2)
-        grid.addWidget(QLabel('Workflow'), 2, 0)
-        grid.addWidget(self.mode_combo, 2, 1, 1, 2)
+        grid.setRowMinimumHeight(2, 10)
+        grid.addWidget(QLabel('Workflow'), 3, 0)
+        grid.addWidget(self.mode_combo, 3, 1, 1, 2)
         layout.addLayout(grid)
-
-        toggle_header = QLabel('Loaded files')
-        toggle_header.setObjectName('SectionTitle')
-        layout.addWidget(toggle_header)
-
-        file_hint = QLabel('Single-click to preview. Ctrl/Cmd-click for bulk settings.')
-        file_hint.setObjectName('HintLabel')
-        file_hint.setWordWrap(True)
-        layout.addWidget(file_hint)
-
-        self.file_list = QListWidget()
-        self.file_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.file_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.file_list.setMinimumHeight(48)
-        self.file_list.setMaximumHeight(72)
-        self.file_list.currentRowChanged.connect(self._switch_preview)
-        layout.addWidget(self.file_list)
 
         button_row = QHBoxLayout()
         button_row.setSpacing(6)
-        self.generate_button = QPushButton('Generate Current File')
+        self.generate_button = self._make_button('Generate Current File')
         self.generate_button.clicked.connect(self._start_current_conversion)
-        self.generate_batch_button = QPushButton('Generate Batch')
+        self.generate_batch_button = self._make_button('Generate Batch')
         self.generate_batch_button.clicked.connect(self._start_batch_conversion)
-        self.open_folder_button = QPushButton('Open Output Folder')
+        self.open_folder_button = self._make_button('Open Output Folder')
         self.open_folder_button.clicked.connect(self._open_output_folder)
         self.open_folder_button.setEnabled(False)
         button_row.addWidget(self.generate_button)
@@ -513,9 +536,9 @@ class MainWindow(QMainWindow):
 
         apply_row = QHBoxLayout()
         apply_row.setSpacing(6)
-        self.apply_selected_button = QPushButton('Apply To Selected')
+        self.apply_selected_button = self._make_button('Apply To Selected', expand=True)
         self.apply_selected_button.clicked.connect(self._apply_current_options_to_selected)
-        self.apply_all_button = QPushButton('Apply To All')
+        self.apply_all_button = self._make_button('Apply To All', expand=True)
         self.apply_all_button.clicked.connect(self._apply_current_options_to_all)
         apply_row.addWidget(self.apply_selected_button)
         apply_row.addWidget(self.apply_all_button)
@@ -543,15 +566,17 @@ class MainWindow(QMainWindow):
         metadata_label.setObjectName('SubSectionTitle')
         layout.addWidget(metadata_label)
 
-        self.metadata_table = QTableWidget(0, 2)
-        self.metadata_table.setHorizontalHeaderLabels(['Field', 'Value'])
+        self.metadata_table = QTableWidget(0, 0)
         self.metadata_table.verticalHeader().setVisible(False)
-        self.metadata_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.metadata_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.metadata_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.metadata_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.metadata_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.metadata_table.setMinimumHeight(126)
-        self.metadata_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.metadata_table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.metadata_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.metadata_table.verticalHeader().setDefaultSectionSize(20)
+        self.metadata_table.setMinimumHeight(72)
+        self.metadata_table.setMaximumHeight(88)
+        self.metadata_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.metadata_table)
         layout.addStretch(1)
         return frame
@@ -559,18 +584,43 @@ class MainWindow(QMainWindow):
     def _build_table_panel(self) -> QFrame:
         frame = QFrame()
         frame.setObjectName('PanelCard')
-        layout = QVBoxLayout(frame)
+        layout = QHBoxLayout(frame)
         layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(6)
+        layout.setSpacing(12)
+
+        sidebar = QFrame()
+        sidebar.setObjectName('SidebarCard')
+        sidebar.setMinimumWidth(220)
+        sidebar.setMaximumWidth(280)
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(12, 12, 12, 12)
+        sidebar_layout.setSpacing(8)
+
+        toggle_header = QLabel('Loaded files')
+        toggle_header.setObjectName('SectionTitle')
+        sidebar_layout.addWidget(toggle_header)
+
+        file_hint = QLabel('Single-click to preview. Ctrl/Cmd-click for bulk settings.')
+        file_hint.setObjectName('HintLabel')
+        file_hint.setWordWrap(True)
+        sidebar_layout.addWidget(file_hint)
+
+        self.file_list = self._create_file_list()
+        sidebar_layout.addWidget(self.file_list, 1)
+
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(6)
 
         orient_label = QLabel('Input Orientation Data')
         orient_label.setObjectName('SectionTitle')
-        layout.addWidget(orient_label)
+        content_layout.addWidget(orient_label)
 
         table_hint = QLabel('Showing the full CSV sample table for the currently selected file.')
         table_hint.setObjectName('HintLabel')
         table_hint.setWordWrap(True)
-        layout.addWidget(table_hint)
+        content_layout.addWidget(table_hint)
 
         self.orientation_table = QTableWidget(0, 0)
         self.orientation_table.verticalHeader().setVisible(False)
@@ -578,7 +628,7 @@ class MainWindow(QMainWindow):
         self.orientation_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.orientation_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.orientation_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        layout.addWidget(self.orientation_table, 1)
+        content_layout.addWidget(self.orientation_table, 1)
 
         self.block_table = QTableWidget(0, 0)
         self.block_table.verticalHeader().setVisible(False)
@@ -586,9 +636,11 @@ class MainWindow(QMainWindow):
         self.block_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.block_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.block_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        layout.addWidget(self.block_table, 1)
+        content_layout.addWidget(self.block_table, 1)
         self.block_table.hide()
-        frame.setMinimumHeight(190)
+        layout.addWidget(sidebar)
+        layout.addWidget(content, 1)
+        frame.setMinimumHeight(250)
         return frame
 
     def _build_log_panel(self) -> QFrame:
@@ -641,6 +693,11 @@ class MainWindow(QMainWindow):
                 background: rgba(255, 255, 255, 0.97);
                 border: 1px solid rgba(118, 157, 80, 0.18);
                 border-radius: 18px;
+            }
+            QFrame#SidebarCard {
+                background: #f7fbef;
+                border: 1px solid #d9e7c2;
+                border-radius: 16px;
             }
             QLabel {
                 background: transparent;
@@ -704,9 +761,13 @@ class MainWindow(QMainWindow):
                 background: #6aa14b;
                 color: #f8fff4;
                 border: none;
-                border-radius: 12px;
-                padding: 6px 10px;
+                border-radius: 16px;
+                padding: 5px 12px;
                 font-weight: 600;
+            }
+            QPushButton#CompactButton {
+                border-radius: 14px;
+                padding: 4px 9px;
             }
             QPushButton:hover {
                 background: #5a9140;
@@ -726,8 +787,9 @@ class MainWindow(QMainWindow):
                 color: #f8fff4;
             }
             QCheckBox {
-                spacing: 6px;
+                spacing: 5px;
                 color: #31402a;
+                font-size: 12px;
             }
             QCheckBox::indicator {
                 width: 14px;
@@ -881,6 +943,8 @@ class MainWindow(QMainWindow):
 
         if preview.parse_error:
             self.preview_error.setText(f'Preview unavailable for this file: {preview.parse_error}')
+            self.metadata_table.clear()
+            self.metadata_table.setColumnCount(0)
             self.metadata_table.setRowCount(0)
             self.orientation_table.setRowCount(0)
             self.block_table.setRowCount(0)
@@ -928,10 +992,14 @@ class MainWindow(QMainWindow):
         self.block_table.horizontalHeader().setStretchLastSection(True)
 
     def _populate_metadata_table(self, preview: CsvPreview) -> None:
-        self.metadata_table.setRowCount(len(preview.metadata))
-        for row_index, (key, value) in enumerate(preview.metadata):
-            self.metadata_table.setItem(row_index, 0, QTableWidgetItem(key))
-            self.metadata_table.setItem(row_index, 1, QTableWidgetItem(value))
+        self.metadata_table.clear()
+        self.metadata_table.setColumnCount(len(preview.metadata))
+        self.metadata_table.setRowCount(1 if preview.metadata else 0)
+        self.metadata_table.setHorizontalHeaderLabels([key for key, _ in preview.metadata])
+        for col_index, (_, value) in enumerate(preview.metadata):
+            item = QTableWidgetItem(value)
+            item.setToolTip(value)
+            self.metadata_table.setItem(0, col_index, item)
         self._resize_metadata_table()
 
     def _populate_orientation_table(self, preview: CsvPreview) -> None:
@@ -950,11 +1018,13 @@ class MainWindow(QMainWindow):
         self.orientation_table.verticalHeader().setDefaultSectionSize(24)
 
     def _resize_metadata_table(self) -> None:
+        self.metadata_table.resizeColumnsToContents()
+        self.metadata_table.resizeRowsToContents()
         header_height = self.metadata_table.horizontalHeader().height()
-        row_height = self.metadata_table.verticalHeader().defaultSectionSize()
         frame = self.metadata_table.frameWidth() * 2
-        visible_rows = max(5, self.metadata_table.rowCount())
-        target_height = header_height + (row_height * visible_rows) + frame + 6
+        row_heights = sum(self.metadata_table.rowHeight(row) for row in range(self.metadata_table.rowCount()))
+        visible_height = header_height + row_heights + frame + 6
+        target_height = max(72, min(88, visible_height))
         self.metadata_table.setMinimumHeight(target_height)
         self.metadata_table.setMaximumHeight(target_height)
 
@@ -969,6 +1039,7 @@ class MainWindow(QMainWindow):
             self.mode_hint.setText(
                 'Core workflow matches the standard SAM path. Sun compass values still win when present unless you disable that above.'
             )
+        self._sync_top_row_height()
 
     def _build_options_from_controls(self) -> CorrectionOptions:
         return CorrectionOptions(
