@@ -1,3 +1,16 @@
 *.pyc
 .DS_Store
 ~$sun_compass_correction.xlsx
+.venv/
+venv/
+GUI/build/
+GUI/dist/
+GUI/__pycache__/
+/block_sample_orientations
+/core_sample_orientations
+/output*.txt
+/task_script.py
+/test_gui_switching.py
+/validate_*.py
+/validation_task.py
+
