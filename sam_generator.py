@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import math
-import os
 from dataclasses import dataclass, field
 from datetime import datetime as dt
 from functools import reduce
 from pathlib import Path
 from typing import Callable
 
-import numpy as np
 import pandas as pd
 
 from mk_sam_utilities import igrf, sundec, to_year_fraction
@@ -25,7 +25,7 @@ class CorrectionOptions:
     orientation_mode: str = 'core'
     apply_declination_to_core_strike: bool = True
     apply_declination_to_block_strike: bool = False
-    apply_declination_to_bedding_strike: bool = True
+    apply_declination_to_bedding_strike: bool = False
     prefer_sun_compass: bool = True
     reverse_block_sun_compass: bool = False
     add_ninety_to_block_strike: bool = False
@@ -60,7 +60,25 @@ def _is_missing(value: object) -> bool:
 def _to_float(value: object) -> float:
     if _is_missing(value):
         return float('nan')
-    return float(value)
+    return float(str(value).strip())
+
+
+def _to_int(value: object, *, default: int | None = None) -> int:
+    if _is_missing(value):
+        if default is None:
+            raise ValueError('Missing integer value.')
+        return default
+
+    numeric_value = _to_float(value)
+    if math.isnan(numeric_value):
+        if default is None:
+            raise ValueError('Missing integer value.')
+        return default
+    return int(numeric_value)
+
+
+def _to_padded_time_part(value: object, *, pad: int, default: int | None = None) -> str:
+    return str(_to_int(value, default=default)).zfill(pad)
 
 
 def _yes(value: object, *, default: bool = False) -> bool:
@@ -96,6 +114,17 @@ def _read_text_with_fallback(file_name: str) -> str:
 def _write_text(path: Path, content: str) -> None:
     with open(path, 'w', encoding='utf-8', newline='') as target_file:
         target_file.write(content)
+
+
+def _parse_csv_row(line: str) -> list[str]:
+    return next(csv.reader([line]))
+
+
+def _format_csv_row(values: list[object]) -> str:
+    output = io.StringIO(newline='')
+    writer = csv.writer(output, lineterminator='')
+    writer.writerow(['' if _is_missing(value) else str(value) for value in values])
+    return output.getvalue()
 
 
 def fix_line_breaks(file_name: str) -> None:
@@ -160,17 +189,22 @@ def _calculate_declinations(
 
     for sample in samples:
         if not sdf[sample].isnull().any():
-            time_values = [str(int(sdf[sample][time_type])) for time_type in time_types]
+            time_values = [
+                str(_to_int(sdf[sample]['year'])),
+                _to_padded_time_part(sdf[sample]['month'], pad=2),
+                _to_padded_time_part(sdf[sample]['days'], pad=2),
+                _to_padded_time_part(sdf[sample]['hours'], pad=2),
+                _to_padded_time_part(sdf[sample]['minutes'], pad=2),
+            ]
             assert len(time_values[0]) == 4, (
                 'must input full year for sun compass calculation (i.e. YYYY)'
             )
-            time_values = [value.zfill(2) if index > 0 else value for index, value in enumerate(time_values)]
             sundata = {
                 'date': reduce(lambda x, y: x + ':' + y, time_values),
-                'lat': hdf['site_info']['site_lat'],
-                'lon': hdf['site_info']['site_long'],
+                'lat': _to_float(hdf['site_info']['site_lat']),
+                'lon': _to_float(hdf['site_info']['site_long']),
                 'shadow_angle': (
-                    -float(sdf[sample]['shadow_angle'])
+                    -_to_float(sdf[sample]['shadow_angle'])
                     if (
                         options.orientation_mode == 'block' and
                         options.reverse_block_sun_compass and
@@ -178,12 +212,12 @@ def _calculate_declinations(
                     )
                     else sdf[sample]['shadow_angle']
                 ),
-                'delta_u': sdf[sample]['GMT_offset'],
+                'delta_u': _to_int(sdf[sample]['GMT_offset']),
             }
             sun_core_strike = sundec(sundata)
             if options.orientation_mode == 'block' and options.add_ninety_to_block_strike:
                 sun_core_strike = _normalize_degrees(float(sun_core_strike) + 90.0)
-            df[sample]['sun_core_strike'] = round(float(sun_core_strike), 1)
+            df.at['sun_core_strike', sample] = round(float(sun_core_strike), 1)
 
         igrf_required_fields = ['GMT_offset', 'year', 'month', 'days']
         if any(_is_missing(sdf[sample][field]) for field in igrf_required_fields):
@@ -193,54 +227,57 @@ def _calculate_declinations(
             )
 
         if _is_missing(hdf['site_info']['site_elevation']):
-            hdf['site_info']['site_elevation'] = 0.0
+            hdf.at['site_elevation', 'site_info'] = 0.0
 
         for time_type in time_types:
-            if _is_missing(sdf[sample][time_type]):
-                sdf[sample][time_type] = 1
+            if _is_missing(sdf.at[time_type, sample]):
+                sdf.at[time_type, sample] = 1
 
         date = to_year_fraction(
             dt(
-                int(sdf[sample]['year']),
-                int(sdf[sample]['month']),
-                int(sdf[sample]['days']),
-                int(sdf[sample]['hours']),
-                int(sdf[sample]['minutes']),
+                _to_int(sdf[sample]['year']),
+                _to_int(sdf[sample]['month']),
+                _to_int(sdf[sample]['days']),
+                _to_int(sdf[sample]['hours']),
+                _to_int(sdf[sample]['minutes']),
             )
         )
-        df[sample]['calculated_IGRF'] = list(
+        igrf_values = list(
             igrf(
                 [
                     date,
-                    float(hdf['site_info']['site_elevation']) / 1000,
-                    float(hdf['site_info']['site_lat']),
-                    float(hdf['site_info']['site_long']),
+                    _to_float(hdf['site_info']['site_elevation']) / 1000,
+                    _to_float(hdf['site_info']['site_lat']),
+                    _to_float(hdf['site_info']['site_long']),
                 ]
             )
         )
-        if float(df[sample]['calculated_IGRF'][0]) > 180:
-            df[sample]['IGRF_local_dec'] = df[sample]['calculated_IGRF'][0] - 360
+        df.at['calculated_IGRF', sample] = igrf_values
+
+        igrf_declination = float(igrf_values[0])
+        if igrf_declination > 180:
+            df.at['IGRF_local_dec', sample] = igrf_declination - 360
         else:
-            df[sample]['IGRF_local_dec'] = df[sample]['calculated_IGRF'][0]
+            df.at['IGRF_local_dec', sample] = igrf_declination
 
         logger(f"{hdf['site_info']['site_id']}{sample} has local IGRF declination of: ")
-        logger(str(df[sample]['IGRF_local_dec']))
+        logger(str(df.at['IGRF_local_dec', sample]))
 
         logger('The local declination calculated through magnetic and sun compass comparison is:')
-        if _is_missing(df[sample]['sun_core_strike']) or _is_missing(df[sample]['magnetic_core_strike']):
-            df[sample]['calculated_mag_dec'] = 'insufficient data'
+        sun_core_strike_value = df.at['sun_core_strike', sample]
+        magnetic_core_strike_value = df.at['magnetic_core_strike', sample]
+        if _is_missing(sun_core_strike_value) or _is_missing(magnetic_core_strike_value):
+            df.at['calculated_mag_dec', sample] = 'insufficient data'
             logger('insufficient data')
         else:
-            calc_mag_dec = (
-                float(df[sample]['sun_core_strike']) -
-                float(df[sample]['magnetic_core_strike'])
-            )
+            calc_mag_dec = float(sun_core_strike_value) - float(magnetic_core_strike_value)
             if calc_mag_dec > 180:
-                df[sample]['calculated_mag_dec'] = calc_mag_dec - 360
-            else:
-                df[sample]['calculated_mag_dec'] = calc_mag_dec
-            logger(f"    {df[sample]['calculated_mag_dec']:+.2f}")
-            if abs(float(df[sample]['IGRF_local_dec']) - float(df[sample]['calculated_mag_dec'])) > 5:
+                calc_mag_dec -= 360
+
+            df.at['calculated_mag_dec', sample] = calc_mag_dec
+
+            logger(f"    {calc_mag_dec:+.2f}")
+            if abs(float(df.at['IGRF_local_dec', sample]) - calc_mag_dec) > 5:
                 logger(
                     'WARNING: local IGRF declination & calculated magnetic declination '
                     'are more than 5 degree different'
@@ -264,12 +301,12 @@ def _apply_orientation_preferences(
     orientation_label = options.orientation_label()
 
     for sample in samples:
-        if _is_missing(df[sample]['correct_bedding_using_local_dec']):
-            df[sample]['correct_bedding_using_local_dec'] = 'yes'
+        if _is_missing(df.at['correct_bedding_using_local_dec', sample]):
+            df.at['correct_bedding_using_local_dec', sample] = 'yes'
 
-        igrf_local_dec = _to_float(df[sample]['IGRF_local_dec'])
-        sun_core_strike = _to_float(df[sample]['sun_core_strike'])
-        magnetic_core_strike = _to_float(df[sample]['magnetic_core_strike'])
+        igrf_local_dec = _to_float(df.at['IGRF_local_dec', sample])
+        sun_core_strike = _to_float(df.at['sun_core_strike', sample])
+        magnetic_core_strike = _to_float(df.at['magnetic_core_strike', sample])
 
         if math.isnan(sun_core_strike) and math.isnan(magnetic_core_strike):
             raise ValueError(
@@ -278,32 +315,32 @@ def _apply_orientation_preferences(
 
         use_sun = options.prefer_sun_compass and not math.isnan(sun_core_strike)
         if use_sun:
-            df[sample]['core_strike'] = round(float(sun_core_strike), 1)
-            df[sample]['comment'] = 'sun compass orientation'
+            df.at['core_strike', sample] = round(float(sun_core_strike), 1)
+            df.at['comment', sample] = 'sun compass orientation'
         else:
             if math.isnan(magnetic_core_strike):
                 raise ValueError(
                     f'Sample {hdf["site_info"]["site_id"]}{sample} is missing magnetic orientation data.'
                 )
             if magnetic_declination_enabled and not math.isnan(igrf_local_dec):
-                df[sample]['core_strike'] = round(
+                df.at['core_strike', sample] = round(
                     _normalize_degrees(float(magnetic_core_strike) + float(igrf_local_dec)),
                     1,
                 )
-                df[sample]['comment'] = f'mag compass orientation ({orientation_label}, IGRF corrected)'
+                df.at['comment', sample] = f'mag compass orientation ({orientation_label}, IGRF corrected)'
             else:
-                df[sample]['core_strike'] = round(_normalize_degrees(float(magnetic_core_strike)), 1)
-                df[sample]['comment'] = f'mag compass orientation ({orientation_label}, uncorrected)'
+                df.at['core_strike', sample] = round(_normalize_degrees(float(magnetic_core_strike)), 1)
+                df.at['comment', sample] = f'mag compass orientation ({orientation_label}, uncorrected)'
 
         should_correct_bedding = (
             options.apply_declination_to_bedding_strike and
-            _yes(df[sample]['correct_bedding_using_local_dec'], default=True) and
-            not _is_missing(df[sample]['bedding_strike']) and
+            _yes(df.at['correct_bedding_using_local_dec', sample], default=True) and
+            not _is_missing(df.at['bedding_strike', sample]) and
             not math.isnan(igrf_local_dec)
         )
         if should_correct_bedding:
-            df[sample]['corrected_bedding_strike'] = round(
-                _normalize_degrees(float(df[sample]['bedding_strike']) + float(igrf_local_dec)),
+            df.at['corrected_bedding_strike', sample] = round(
+                _normalize_degrees(float(df.at['bedding_strike', sample]) + float(igrf_local_dec)),
                 1,
             )
 
@@ -313,11 +350,12 @@ def _build_sam_header(hdf: pd.DataFrame, df: pd.DataFrame) -> str:
     sam_header = hdf['site_info']['site_name'] + WINDOWS_NEWLINE
 
     for value in site_values:
-        hdf['site_info'][value] = str(round(float(hdf['site_info'][value]), 1))
+        rounded_value = str(round(float(hdf['site_info'][value]), 1))
+        hdf.at[value, 'site_info'] = rounded_value
         if value == 'site_lat':
-            sam_header += ' ' + hdf['site_info'][value]
+            sam_header += ' ' + rounded_value
         if value == 'site_long':
-            sam_header += ' {:05.1f}'.format(float(hdf['site_info'][value]) % 360)
+            sam_header += ' {:05.1f}'.format(float(rounded_value) % 360)
     sam_header += ' ' * 3 + '0.0'
     sam_header += WINDOWS_NEWLINE
 
@@ -421,59 +459,6 @@ def _field_magic_code(comments: pd.Series) -> str:
     return 'SO-SM'
 
 
-def generate_inp_file(output_directory: Path, df: pd.DataFrame, hdf: pd.DataFrame) -> Path:
-    inps = ''
-    inps += 'CIT' + WINDOWS_NEWLINE
-    inps += (
-        'sam_path\tfield_magic_codes\tlocation\tnaming_convention\t'
-        'num_terminal_char\tdont_average_replicate_measurements\tpeak_AF\ttime_stamp' +
-        WINDOWS_NEWLINE
-    )
-    inps += os.path.join('.', hdf['site_info']['site_id'] + '.sam') + '\t'
-    inps += _field_magic_code(df.T['comment']) + '\t'
-
-    site_name = hdf['site_info']['site_name']
-    if _is_missing(site_name) or site_name == '':
-        inps += 'unknown\t'
-    else:
-        inps += str(site_name) + '\t'
-
-    first_sample_id = str(df.keys()[0])
-    if first_sample_id[0] == '-' or hdf['site_info']['site_id'][-1] == '-':
-        inps += '2\t'
-        if first_sample_id[0] == '-':
-            first_sample_id = first_sample_id.replace('-', '', 1)
-    elif first_sample_id[0] == '.' or hdf['site_info']['site_id'][-1] == '.':
-        inps += '3\t'
-        if first_sample_id[0] == '.':
-            first_sample_id = first_sample_id.replace('.', '', 1)
-    elif hdf['site_info']['site_id'] == first_sample_id:
-        inps += '5\t'
-    else:
-        inps += '4\t'
-
-    sample_list = list(map(str, df.keys()))
-    sample_ct = len(sample_list)
-    char_num = len(min(sample_list, key=len))
-    term_ct, term_unique = 0, 0
-    the_rest = sample_list
-    while term_ct < char_num:
-        lastchar = [sample_name[-1] for sample_name in the_rest]
-        the_rest = [sample_name[0:-1] for sample_name in the_rest]
-        term_ct += 1
-        unique_chars = np.unique(lastchar)
-        unique_rest = np.unique(the_rest)
-        if len(unique_chars) == sample_ct and len(unique_rest) == 1:
-            term_unique = 1
-            break
-    inps += str(term_ct if term_unique else 0) + '\t'
-    inps += '1\t0\t' + dt.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ') + WINDOWS_NEWLINE
-
-    output_path = output_directory / (hdf['site_info']['site_id'] + '.inp')
-    _write_text(output_path, inps)
-    return output_path
-
-
 def _write_updated_csv(
     file_name: str,
     output_directory: Path,
@@ -495,11 +480,11 @@ def _write_updated_csv(
 
     header_line = csv_lines[6].rstrip('\n')
     csv_str += header_line + WINDOWS_NEWLINE
-    header = header_line.split(',')
+    header = _parse_csv_row(header_line)
     samples = list(df.keys())
 
     for sample_index, sample in enumerate(samples):
-        items = csv_lines[7 + sample_index].split(',')
+        items = _parse_csv_row(csv_lines[7 + sample_index])
         if len(items) < len(header):
             items.extend([''] * (len(header) - len(items)))
         items = [item.rstrip('\n') for item in items]
@@ -517,7 +502,7 @@ def _write_updated_csv(
                 items[item_index] = str(sdf[sample][column_name])
             else:
                 raise KeyError('there is no item: ' + column_name)
-        csv_str += reduce(lambda x, y: x + ',' + y, items) + WINDOWS_NEWLINE
+        csv_str += _format_csv_row(items) + WINDOWS_NEWLINE
 
     output_path = output_directory / (output_name or (hdf['site_info']['site_id'] + '.csv'))
     logger('Writing file - ' + str(output_path))
@@ -635,7 +620,6 @@ def convert_csv_to_sam(
         generated_files.append(sample_path)
 
     generated_files.append(_write_updated_csv(str(source_path), target_directory, hdf, df, sdf, logger))
-    generated_files.append(generate_inp_file(target_directory, df, hdf))
     return ConversionResult(output_directory=target_directory, site_id=site_id, generated_files=generated_files)
 
 
@@ -650,7 +634,7 @@ def cli_main(argv: list[str] | None = None) -> int:
     parser.add_argument('--no-correct-core-strike', dest='correct_core_strike', action='store_false')
     parser.add_argument('--correct-block-strike', dest='correct_block_strike', action='store_true', default=False)
     parser.add_argument('--no-correct-block-strike', dest='correct_block_strike', action='store_false')
-    parser.add_argument('--correct-bedding-strike', dest='correct_bedding_strike', action='store_true', default=True)
+    parser.add_argument('--correct-bedding-strike', dest='correct_bedding_strike', action='store_true', default=False)
     parser.add_argument('--no-correct-bedding-strike', dest='correct_bedding_strike', action='store_false')
     args = parser.parse_args(argv)
 
@@ -685,6 +669,5 @@ __all__ = [
     'convert_csv_to_block_outputs',
     'convert_csv_to_sam',
     'fix_line_breaks',
-    'generate_inp_file',
     'write_stitched_block_orientation_file',
 ]
