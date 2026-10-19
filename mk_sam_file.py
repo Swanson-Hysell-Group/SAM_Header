@@ -3,11 +3,42 @@
 import os
 import sys
 import math
+import time
 import numpy as np
 import pandas as pd
-from mk_sam_utilities import *
+from pmagpy import ipmag, pmag
 from datetime import datetime as dt
 from functools import reduce
+
+# last date covered by the IGRF-14 field model used by pmagpy (ipmag.igrf)
+IGRF_LAST_DATE = 2030.0
+
+
+def to_year_fraction(date):
+    """Convert a datetime to a decimal year.
+
+    Authored by ninjagecko on Stack Overflow:
+    http://stackoverflow.com/questions/6451655/python-how-to-convert-datetime-dates-to-decimal-years
+
+    Args:
+        date (datetime.datetime): date and time.
+
+    Returns:
+        float: decimal year.
+    """
+    def sinceEpoch(date):  # returns seconds since epoch
+        return time.mktime(date.timetuple())
+    s = sinceEpoch
+
+    year = date.year
+    startOfThisYear = dt(year=year, month=1, day=1)
+    startOfNextYear = dt(year=year+1, month=1, day=1)
+
+    yearElapsed = s(date) - s(startOfThisYear)
+    yearDuration = s(startOfNextYear) - s(startOfThisYear)
+    fraction = yearElapsed/yearDuration
+
+    return date.year + fraction
 
 
 def main():
@@ -61,8 +92,16 @@ def main():
     sdf = pd.read_csv(file_name, header=6, index_col=0,
                       usecols=sdf_cols).transpose()
 
+    # convert to nested dicts ({column: {row: value}}) so that values can be
+    # updated in place with hdf['site_info'][key] = value and
+    # df[sample][attribute] = value. With pandas >= 3.0 (copy-on-write) this
+    # chained assignment no longer modifies a DataFrame.
+    hdf = hdf.to_dict()
+    df = df.to_dict()
+    sdf = sdf.to_dict()
+
     # variable assignments
-    samples = df.keys()
+    samples = list(df.keys())
     attributes = ['core_strike', 'core_dip',
                   'bedding_strike', 'bedding_dip', 'mass']
     site_values = ['site_lat', 'site_long']
@@ -76,7 +115,7 @@ def main():
 
     # calculate sun_core_strike for all samples
     for sample in samples:
-        if (not sdf[sample].isnull().any()):
+        if not any(pd.isnull(value) for value in sdf[sample].values()):
             # df[sample]['sun_core_strike'] = float('nan')
             # continue
             # else:
@@ -99,10 +138,10 @@ def main():
             sundata['lon'] = hdf['site_info']['site_long']
             sundata['shadow_angle'] = sdf[sample]['shadow_angle']
             sundata['delta_u'] = sdf[sample]['GMT_offset']
-            df[sample]['sun_core_strike'] = round(sundec(sundata), 1)
+            df[sample]['sun_core_strike'] = round(pmag.dosundec(sundata), 1)
 
     # calculate IGRF
-        if (sdf[sample]['GMT_offset':'month'].isnull()).any():
+        if any(pd.isnull(sdf[sample][key]) for key in ['GMT_offset', 'year', 'month']):
             raise ValueError("not enough data to calculate IGRF to correct "
                              "bedding please input at least GMT_offset, "
                              "year, month, day of measurement\n")
@@ -117,8 +156,12 @@ def main():
                                        int(sdf[sample]['days']),
                                        int(sdf[sample]['hours']),
                                        int(sdf[sample]['minutes'])))
+            # pmagpy returns a zero field (declination 0) after the end of the model
+            if date > IGRF_LAST_DATE:
+                raise ValueError('sample {} date ({:.2f}) is after the end of the IGRF-14 '
+                                 'model ({})'.format(sample, date, IGRF_LAST_DATE))
             df[sample]['calculated_IGRF'] = list(
-                    igrf([date,
+                    ipmag.igrf([date,
                           float(hdf['site_info']['site_elevation'])/1000,
                           float(hdf['site_info']['site_lat']),
                           float(hdf['site_info']['site_long'])]))
@@ -153,7 +196,8 @@ def main():
         print('')
     print('')
     print('Site averages:')
-    print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
+    print('Average of local IGRF declination is: ' +
+          str(pd.Series([df[sample]['IGRF_local_dec'] for sample in samples], dtype=float).mean()))
     # print('Average of calculated local declination: ' +
     #       str(df.transpose()['calculated_mag_dec'].mean()))
     print('')
@@ -184,8 +228,10 @@ def main():
 
     # creating and writing file
     print('Writing file - ' + os.path.join(output_directory, hdf['site_info']['site_id'] + '.sam'))
+    # newline='' writes the '\r\n' line endings as is on all platforms (in text
+    # mode on Windows each '\n' would otherwise become '\r\n', giving '\r\r\n')
     sam_file = open(os.path.join(output_directory,
-                                 hdf['site_info']['site_id'] + '.sam'), 'w+')
+                                 hdf['site_info']['site_id'] + '.sam'), 'w+', newline='')
     sam_file.write(sam_header)
     sam_file.close()
 
@@ -299,7 +345,8 @@ def main():
         # create and write sample file
         new_file = new_file.rstrip('\r\n') + '\r\n'
         print('Writing file - ' + os.path.join(output_directory, site_id + str(sample)))
-        sample_file = open(os.path.join(output_directory, site_id + str(sample)), 'w+')
+        sample_file = open(os.path.join(output_directory, site_id + str(sample)), 'w+',
+                           newline='')
         sample_file.write(new_file)
         sample_file.close()
 
@@ -344,7 +391,8 @@ def main():
         csv_str += reduce(lambda x, y: x + ',' + y, items) + '\r\n'
 
     print('Writing file - ' + os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'))
-    new_csv_file = open(os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'), 'w+')
+    new_csv_file = open(os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'), 'w+',
+                        newline='')
     new_csv_file.write(csv_str)
     new_csv_file.close()
 
@@ -353,7 +401,7 @@ def main():
 
 def fix_line_breaks():
     """ Reads in the file given as a command line argument and rewrites it both line
-        break types '\ r' and '\ n' so that python will for sure register all lines
+        break types '\\r' and '\\n' so that python will for sure register all lines
     """
     file_name = sys.argv[1]
     # fix line breaks between different OS and python's default
@@ -388,8 +436,8 @@ def generate_inp_file(od, df, hdf):
         Uses sample and site DataFrames from mk_sam_file.main function to generate inp file
 
         @param: od - output directory
-        @param: df - sample Dataframe
-        @param: hdf - site DataFrame
+        @param: df - sample dict ({sample: {attribute: value}})
+        @param: hdf - site dict ({'site_info': {key: value}})
 
     OUTPUT
         .inp file
@@ -401,9 +449,10 @@ def generate_inp_file(od, df, hdf):
     inps += "CIT\n"
     inps += "sam_path\tfield_magic_codes\tlocation\tnaming_convention\tnum_terminal_char\tdont_average_replicate_measurements\tpeak_AF\ttime_stamp\n"
     inps += (os.path.join('.', hdf['site_info']['site_id'] + '.sam')) + '\t'
-    if all(df.T['comment'] == 'sun compass orientation'):
+    comments = [df[sample]['comment'] for sample in df]
+    if all(comment == 'sun compass orientation' for comment in comments):
         inps += 'SO-SUN\t'
-    elif all(df.T['comment'] == 'mag compass orientation (IGRF corrected)'):
+    elif all(comment == 'mag compass orientation (IGRF corrected)' for comment in comments):
         inps += 'SO-MAG\t'
     else:
         inps += 'SO-SM\t'
@@ -412,7 +461,7 @@ def generate_inp_file(od, df, hdf):
              != '' or hdf['site_info']['site_name'] is not None else 'unknown') + '\t'
 
     # DETERMINE SITE NAMING CONVENTION
-    first_sample_id = str(df.keys()[0])
+    first_sample_id = str(list(df.keys())[0])
     """Sample naming conventions:
     [1] XXXXY: where XXXX is an arbitrary length site designation and Y
     is the single character sample designation.  e.g., TG001a is the

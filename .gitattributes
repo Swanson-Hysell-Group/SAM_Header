@@ -1,0 +1,2 @@
+# regression test fixtures are compared byte for byte (CRLF line endings)
+tests/data/** -text
