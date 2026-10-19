@@ -61,8 +61,16 @@ def main():
     sdf = pd.read_csv(file_name, header=6, index_col=0,
                       usecols=sdf_cols).transpose()
 
+    # convert to nested dicts ({column: {row: value}}) so that values can be
+    # updated in place with hdf['site_info'][key] = value and
+    # df[sample][attribute] = value. With pandas >= 3.0 (copy-on-write) this
+    # chained assignment no longer modifies a DataFrame.
+    hdf = hdf.to_dict()
+    df = df.to_dict()
+    sdf = sdf.to_dict()
+
     # variable assignments
-    samples = df.keys()
+    samples = list(df.keys())
     attributes = ['core_strike', 'core_dip',
                   'bedding_strike', 'bedding_dip', 'mass']
     site_values = ['site_lat', 'site_long']
@@ -76,7 +84,7 @@ def main():
 
     # calculate sun_core_strike for all samples
     for sample in samples:
-        if (not sdf[sample].isnull().any()):
+        if not any(pd.isnull(value) for value in sdf[sample].values()):
             # df[sample]['sun_core_strike'] = float('nan')
             # continue
             # else:
@@ -102,7 +110,7 @@ def main():
             df[sample]['sun_core_strike'] = round(sundec(sundata), 1)
 
     # calculate IGRF
-        if (sdf[sample]['GMT_offset':'month'].isnull()).any():
+        if any(pd.isnull(sdf[sample][key]) for key in ['GMT_offset', 'year', 'month']):
             raise ValueError("not enough data to calculate IGRF to correct "
                              "bedding please input at least GMT_offset, "
                              "year, month, day of measurement\n")
@@ -153,7 +161,8 @@ def main():
         print('')
     print('')
     print('Site averages:')
-    print('Average of local IGRF declination is: ' + str(df.transpose()['IGRF_local_dec'].mean()))
+    print('Average of local IGRF declination is: ' +
+          str(pd.Series([df[sample]['IGRF_local_dec'] for sample in samples], dtype=float).mean()))
     # print('Average of calculated local declination: ' +
     #       str(df.transpose()['calculated_mag_dec'].mean()))
     print('')
@@ -353,7 +362,7 @@ def main():
 
 def fix_line_breaks():
     """ Reads in the file given as a command line argument and rewrites it both line
-        break types '\ r' and '\ n' so that python will for sure register all lines
+        break types '\\r' and '\\n' so that python will for sure register all lines
     """
     file_name = sys.argv[1]
     # fix line breaks between different OS and python's default
@@ -388,8 +397,8 @@ def generate_inp_file(od, df, hdf):
         Uses sample and site DataFrames from mk_sam_file.main function to generate inp file
 
         @param: od - output directory
-        @param: df - sample Dataframe
-        @param: hdf - site DataFrame
+        @param: df - sample dict ({sample: {attribute: value}})
+        @param: hdf - site dict ({'site_info': {key: value}})
 
     OUTPUT
         .inp file
@@ -401,9 +410,10 @@ def generate_inp_file(od, df, hdf):
     inps += "CIT\n"
     inps += "sam_path\tfield_magic_codes\tlocation\tnaming_convention\tnum_terminal_char\tdont_average_replicate_measurements\tpeak_AF\ttime_stamp\n"
     inps += (os.path.join('.', hdf['site_info']['site_id'] + '.sam')) + '\t'
-    if all(df.T['comment'] == 'sun compass orientation'):
+    comments = [df[sample]['comment'] for sample in df]
+    if all(comment == 'sun compass orientation' for comment in comments):
         inps += 'SO-SUN\t'
-    elif all(df.T['comment'] == 'mag compass orientation (IGRF corrected)'):
+    elif all(comment == 'mag compass orientation (IGRF corrected)' for comment in comments):
         inps += 'SO-MAG\t'
     else:
         inps += 'SO-SM\t'
@@ -412,7 +422,7 @@ def generate_inp_file(od, df, hdf):
              != '' or hdf['site_info']['site_name'] is not None else 'unknown') + '\t'
 
     # DETERMINE SITE NAMING CONVENTION
-    first_sample_id = str(df.keys()[0])
+    first_sample_id = str(list(df.keys())[0])
     """Sample naming conventions:
     [1] XXXXY: where XXXX is an arbitrary length site designation and Y
     is the single character sample designation.  e.g., TG001a is the
