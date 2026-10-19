@@ -21,7 +21,7 @@ def igrf(input_list):
 
 def doigrf(lon, lat, alt, date, **kwargs):
     """
-    Calculates the interpolated (<2015) or extrapolated (>2015) main field and
+    Calculates the interpolated (<=2025) or extrapolated (2025-2030) main field and
     secular variation coefficients and passes them to the Malin and Barraclough
     routine (function pmag.magsyn) to calculate the field from the coefficients.
 
@@ -54,8 +54,11 @@ def doigrf(lon, lat, alt, date, **kwargs):
     z : downward component of the magnetic field in nT
     f : total magnetic field in nT
 
-    By default, igrf13 coefficients are used between 1900 and 2020
-    from http://www.ngdc.noaa.gov/IAGA/vmod/igrf.html.
+    By default, IGRF-14 coefficients are used between 1900 and 2030
+    (https://www.ngdc.noaa.gov/IAGA/vmod/igrf.html): interpolated between
+    5-year epochs up to 2025 and extrapolated with the 2025-2030 secular
+    variation after 2025, as in pmagpy.pmag.doigrf. Dates after 2030 raise
+    a ValueError.
 
 
     To check the results you can run the interactive program at the NGDC
@@ -69,8 +72,7 @@ def doigrf(lon, lat, alt, date, **kwargs):
         lon = lon + 360.
 # ensure all positive east longitudes
     itype = 1
-    models, igrf13coeffs = cf.get_igrf13()
-    #models, igrf12coeffs = cf.get_igrf12()
+    models, igrf14coeffs = cf.get_igrf14()
     if 'mod' in list(kwargs.keys()):
         if kwargs['mod'] == 'arch3k':
             psvmodels, psvcoeffs = cf.get_arch3k()  # use ARCH3k coefficients
@@ -104,7 +106,7 @@ def doigrf(lon, lat, alt, date, **kwargs):
         if 'mod' in list(kwargs.keys()):
             return psvmodels, psvcoeffs
         else:
-            return models, igrf13coeffs
+            return models, igrf14coeffs
     if date < -12000:
         print('too old')
         return
@@ -135,43 +137,23 @@ def doigrf(lon, lat, alt, date, **kwargs):
         if model + incr < 1900:
             sv = (psvcoeffs[psvmodels.index(model + incr)] - gh)/float(incr)
         else:
-            field2 = igrf13coeffs[models.index(1940)][0:120]
+            field2 = igrf14coeffs[models.index(1940)][0:120]
             sv = (field2 - gh)/float(1940 - model)
         x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
-    else:
+    elif date <= 2030:
+        # IGRF-14: interpolate between 5-year epochs up to 2025 and extrapolate
+        # with the 2025-2030 secular variation (the 2030 epoch) after 2025
         model = date - date % 5
-        if date <2020:
-            gh = np.array(igrf13coeffs[models.index(model)])
-            sv = (np.array(igrf13coeffs[models.index(model + 5)]) - gh)/5.
-            x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
+        gh = np.array(igrf14coeffs[models.index(model)])
+        if date < 2030:
+            sv = (np.array(igrf14coeffs[models.index(model + 5)]) - gh)/5.
         else:
-            gh = igrf13coeffs[models.index(2020)]
-            sv = np.array(igrf13coeffs[models.index(2020.2)])
-            x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
+            sv = np.zeros(len(gh))
+        x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
+    else:
+        raise ValueError('IGRF-14 is only defined to 2030; date {} is out of range'.format(date))
     if 'coeffs' in list(kwargs.keys()):
         return gh
-        #model = date - date % incr
-        #gh = psvcoeffs[psvmodels.index(model)]
-        #if model + incr < 1900:
-        #    sv = (psvcoeffs[psvmodels.index(model + incr)] - gh)/float(incr)
-        #else:
-        #    field2 = igrf13coeffs[models.index(1940)][0:120]
-        #    sv = (field2 - gh)/float(1940 - model)
-        #x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
-    #else:
-    #    model = date - date % 5
-    #    if date <2020:
-    #        gh = np.array(igrf13coeffs[models.index(model)])
-    #        sv = (np.array(igrf13coeffs[models.index(model + 5)]) - gh)/5.
-    #        x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
-    #    else:
-    #        gh = igrf13coeffs[models.index(2020)]
-    #        sv = np.array(igrf13coeffs[models.index(2020.2)])
-    #        x, y, z, f = magsyn(gh, sv, model, date, itype, alt, colat, lon)
-    #if 'coeffs' in list(kwargs.keys()):
-    #    return gh
-    #else:
-    #    return x, y, z, f
     return x, y, z, f
 #
 

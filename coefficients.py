@@ -1,4 +1,29 @@
 import numpy as np
+import pandas as pd
+from pathlib import Path
+
+
+def get_igrf14():
+    """Return the IGRF-14 epochs and Gauss coefficients.
+
+    The coefficients are read from field_models/igrf14coeffs.txt, the official
+    IAGA coefficient file (https://www.ngdc.noaa.gov/IAGA/vmod/coeffs/igrf14coeffs.txt,
+    identical to the copy in PmagPy). A 2030 epoch is added from the 2025-2030 secular
+    variation so that dates up to 2030 can be calculated. Adapted from
+    pmagpy.coefficients.get_igrf14 (PmagPy).
+
+    Returns:
+        tuple: (list of int epochs 1900-2030, numpy array of shape
+            (n_epochs, 195) with the coefficients for each epoch)
+    """
+    coeffs_path = Path(__file__).resolve().parent / 'field_models' / 'igrf14coeffs.txt'
+    igrf14_df = pd.read_csv(coeffs_path, header=3, sep=r'\s+')
+    igrf14_df['2030.0'] = igrf14_df['2025.0'] + igrf14_df['2025-30'] * 5
+    igrf14_df = igrf14_df.drop(columns=['g/h', 'n', 'm', '2025-30'])
+    models = [int(float(year)) for year in igrf14_df.columns]
+    coeffs = igrf14_df.to_numpy(dtype=float).T
+    return models, coeffs
+
 
 def get_igrf13():
     models=[1900, 1905, 1910, 1915, 1920, 1925, 1930, 1935, 1940, 1945, 1950,
