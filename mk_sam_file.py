@@ -3,11 +3,42 @@
 import os
 import sys
 import math
+import time
 import numpy as np
 import pandas as pd
-from mk_sam_utilities import *
+from pmagpy import ipmag, pmag
 from datetime import datetime as dt
 from functools import reduce
+
+# last date covered by the IGRF-14 field model used by pmagpy (ipmag.igrf)
+IGRF_LAST_DATE = 2030.0
+
+
+def to_year_fraction(date):
+    """Convert a datetime to a decimal year.
+
+    Authored by ninjagecko on Stack Overflow:
+    http://stackoverflow.com/questions/6451655/python-how-to-convert-datetime-dates-to-decimal-years
+
+    Args:
+        date (datetime.datetime): date and time.
+
+    Returns:
+        float: decimal year.
+    """
+    def sinceEpoch(date):  # returns seconds since epoch
+        return time.mktime(date.timetuple())
+    s = sinceEpoch
+
+    year = date.year
+    startOfThisYear = dt(year=year, month=1, day=1)
+    startOfNextYear = dt(year=year+1, month=1, day=1)
+
+    yearElapsed = s(date) - s(startOfThisYear)
+    yearDuration = s(startOfNextYear) - s(startOfThisYear)
+    fraction = yearElapsed/yearDuration
+
+    return date.year + fraction
 
 
 def main():
@@ -107,7 +138,7 @@ def main():
             sundata['lon'] = hdf['site_info']['site_long']
             sundata['shadow_angle'] = sdf[sample]['shadow_angle']
             sundata['delta_u'] = sdf[sample]['GMT_offset']
-            df[sample]['sun_core_strike'] = round(sundec(sundata), 1)
+            df[sample]['sun_core_strike'] = round(pmag.dosundec(sundata), 1)
 
     # calculate IGRF
         if any(pd.isnull(sdf[sample][key]) for key in ['GMT_offset', 'year', 'month']):
@@ -125,8 +156,12 @@ def main():
                                        int(sdf[sample]['days']),
                                        int(sdf[sample]['hours']),
                                        int(sdf[sample]['minutes'])))
+            # pmagpy returns a zero field (declination 0) after the end of the model
+            if date > IGRF_LAST_DATE:
+                raise ValueError('sample {} date ({:.2f}) is after the end of the IGRF-14 '
+                                 'model ({})'.format(sample, date, IGRF_LAST_DATE))
             df[sample]['calculated_IGRF'] = list(
-                    igrf([date,
+                    ipmag.igrf([date,
                           float(hdf['site_info']['site_elevation'])/1000,
                           float(hdf['site_info']['site_lat']),
                           float(hdf['site_info']['site_long'])]))
