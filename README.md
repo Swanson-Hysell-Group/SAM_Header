@@ -50,7 +50,7 @@ Rows 8 and onward are sample information. These following values pertain to the 
 
 ## Dependencies
 
-The code requires the standard scientific python modules of numpy, scipy and pandas. The Anaconda distribution is a quick way to get set up using Python. Other necessary functions from the PmagPy project (https://github.com/PmagPy/PmagPy/) that are dependencies for mk_sam_file.py have been collected in mk_sam_utilities.py which is included in the repository such that you don't need to download PmagPy for the program to run.
+The code requires the standard scientific python modules of numpy, scipy and pandas (pandas 2 and 3 are both supported). The Anaconda distribution is a quick way to get set up using Python. Other necessary functions from the PmagPy project (https://github.com/PmagPy/PmagPy/) that are dependencies for mk_sam_file.py have been collected in mk_sam_utilities.py which is included in the repository such that you don't need to download PmagPy for the program to run.
 
 ## Tips
 If your directory structure follows the general format of ```./<site>/<template>.csv``` and you have multiple templates ready for conversion, you might find the following command line regex useful:
@@ -60,3 +60,11 @@ If your directory structure follows the general format of ```./<site>/<template>
 This regex navigates into all subdirectories, generates .sam header files for any CSV files it finds, and outputs them into the same subdirectory. Note that you must add the SAM_Header folder to your path so that the ```mk_sam_file.py``` program is accessible outside of your current directory. To do this, open ```.profile``` or ```.bash_profile``` (located in your home directory) in a text editor and add the following line:
 
 ```export PATH=<absolute path to ‘SAM_Header’ folder>/SAM_Header/:./:$PATH```
+
+## Tests
+
+Regression tests compare the output of `mk_sam_file.py` for real site templates against reference files (see `tests/test_mk_sam_file.py`). Run them from the repository folder with:
+
+```bash
+python -m pytest tests
+```
