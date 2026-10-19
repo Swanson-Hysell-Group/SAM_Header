@@ -193,8 +193,10 @@ def main():
 
     # creating and writing file
     print('Writing file - ' + os.path.join(output_directory, hdf['site_info']['site_id'] + '.sam'))
+    # newline='' writes the '\r\n' line endings as is on all platforms (in text
+    # mode on Windows each '\n' would otherwise become '\r\n', giving '\r\r\n')
     sam_file = open(os.path.join(output_directory,
-                                 hdf['site_info']['site_id'] + '.sam'), 'w+')
+                                 hdf['site_info']['site_id'] + '.sam'), 'w+', newline='')
     sam_file.write(sam_header)
     sam_file.close()
 
@@ -308,7 +310,8 @@ def main():
         # create and write sample file
         new_file = new_file.rstrip('\r\n') + '\r\n'
         print('Writing file - ' + os.path.join(output_directory, site_id + str(sample)))
-        sample_file = open(os.path.join(output_directory, site_id + str(sample)), 'w+')
+        sample_file = open(os.path.join(output_directory, site_id + str(sample)), 'w+',
+                           newline='')
         sample_file.write(new_file)
         sample_file.close()
 
@@ -353,7 +356,8 @@ def main():
         csv_str += reduce(lambda x, y: x + ',' + y, items) + '\r\n'
 
     print('Writing file - ' + os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'))
-    new_csv_file = open(os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'), 'w+')
+    new_csv_file = open(os.path.join(output_directory, hdf['site_info']['site_id'] + '.csv'), 'w+',
+                        newline='')
     new_csv_file.write(csv_str)
     new_csv_file.close()
 
